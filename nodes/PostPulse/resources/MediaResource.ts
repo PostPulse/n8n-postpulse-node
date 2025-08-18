@@ -36,8 +36,9 @@ async function uploadMedia(this: IExecuteFunctions, itemIndex: number): Promise<
 	const binaryData = item.binary[binaryPropertyName];
 	const formData: IDataObject = {};
 
+	const binaryBuffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
 	formData.file = {
-		value: this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName),
+		value: binaryBuffer,
 		options: {
 			filename: binaryData.fileName || 'file',
 			contentType: binaryData.mimeType,

@@ -50,15 +50,16 @@ export async function makeApiRequestWithFormData(
 	const options: IRequestOptions = { 
 		method, 
 		url, 
-		formData, 
-		json: true,
+		formData,
 		headers: {
 			'x-api-key': creds.clientId ?? ''
 		} 
 	};
 
 	try {
-		return await this.helpers.requestWithAuthentication.call(this, 'postPulseOAuth2Api', options);
+		const response = await this.helpers.requestWithAuthentication.call(this, 'postPulseOAuth2Api', options);
+		// Parse JSON response since we can't use json:true with formData
+		return typeof response === 'string' ? JSON.parse(response) : response;
 	} catch (error: any) {
 		throw new NodeOperationError(this.getNode(), `Media upload failed: ${error.message}`, { itemIndex });
 	}
