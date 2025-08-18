@@ -12,7 +12,7 @@ export class PostPulseOAuth2Api implements ICredentialType {
 
 	displayName = 'PostPulse OAuth2 API';
 
-	documentationUrl = 'https://post-pulse.com/docs';
+	documentationUrl = 'https://developers.post-pulse.com';
 
 	properties: INodeProperties[] = [
 		{
