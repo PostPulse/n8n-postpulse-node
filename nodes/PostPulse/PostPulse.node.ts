@@ -3,14 +3,12 @@ import type {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	IDataObject,
-	IHttpRequestMethods,
-	IRequestOptions,
 	NodeConnectionType,
 } from 'n8n-workflow';
 
-import { NodeOperationError } from 'n8n-workflow';
-import { Buffer } from 'buffer';
+import { executeAccountOperation } from './resources/AccountResource';
+import { executeMediaOperation } from './resources/MediaResource';
+import { executePostOperation } from './resources/PostResource';
 
 export class PostPulse implements INodeType {
 	description: INodeTypeDescription = {
@@ -319,19 +317,11 @@ export class PostPulse implements INodeType {
 				let responseData: any;
 
 				if (resource === 'account') {
-					if (operation === 'getAll') {
-						responseData = await makeApiRequest.call(this, 'GET', '/v1/accounts');
-					} else if (operation === 'getConnectedChats') {
-						responseData = await getConnectedChats.call(this, i);
-					}
+					responseData = await executeAccountOperation.call(this, operation, i);
 				} else if (resource === 'media') {
-					if (operation === 'upload') {
-						responseData = await uploadMedia.call(this, i);
-					}
+					responseData = await executeMediaOperation.call(this, operation, i);
 				} else if (resource === 'post') {
-					if (operation === 'schedule') {
-						responseData = await schedulePost.call(this, i);
-					}
+					responseData = await executePostOperation.call(this, operation, i);
 				}
 
 				const executionData = this.helpers.constructExecutionMetaData(
@@ -355,150 +345,4 @@ export class PostPulse implements INodeType {
 
 		return [returnData];
 	}
-}
-
-async function makeApiRequest(
-  this: IExecuteFunctions,
-  method: IHttpRequestMethods,
-  endpoint: string,
-  body?: IDataObject,
-  qs?: IDataObject,
-): Promise<any> {
-
-  const creds = await this.getCredentials('postPulseOAuth2Api') as { baseUrl?: string; clientId?: string; };
-  const baseUrl = (creds.baseUrl || 'https://api.post-pulse.com').replace(/\/+$/, '');
-  const url = `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-
-  const options: IRequestOptions = { 
-	method, 
-	url, 
-	json: true,
-	headers: {
-		'x-api-key': creds.clientId ?? ''
-	}
-  };
-  if (body) options.body = body;
-  if (qs) options.qs = qs;
-
-  try {
-    return await this.helpers.requestWithAuthentication.call(this, 'postPulseOAuth2Api', options);
-  } catch (error: any) {
-    throw new NodeOperationError(this.getNode(), `PostPulse API request failed: ${error.message}`, { itemIndex: 0 });
-  }
-}
-
-async function makeApiRequestWithFormData(
-  this: IExecuteFunctions,
-  method: IHttpRequestMethods,
-  endpoint: string,
-  formData: IDataObject,
-  itemIndex: number,
-): Promise<any> {
-
-  const creds = await this.getCredentials('postPulseOAuth2Api') as { baseUrl?: string; clientId?: string; };
-  const baseUrl = (creds.baseUrl || 'https://api.post-pulse.com').replace(/\/+$/, '');
-  const url = `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-
-  const options: IRequestOptions = { 
-	method, 
-	url, 
-	formData, 
-	json: true,
-	headers: {
-		'x-api-key': creds.clientId ?? ''
-	} 
-  };
-
-  try {
-    return await this.helpers.requestWithAuthentication.call(this, 'postPulseOAuth2Api', options);
-  } catch (error: any) {
-    throw new NodeOperationError(this.getNode(), `Media upload failed: ${error.message}`, { itemIndex });
-  }
-}
-
-async function uploadMedia(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const binaryPropertyName = this.getNodeParameter('binaryPropertyName', itemIndex) as string;
-
-	const item = this.getInputData()[itemIndex];
-
-	if (!item.binary || !item.binary[binaryPropertyName]) {
-		throw new NodeOperationError(
-			this.getNode(),
-			`No binary data found for property "${binaryPropertyName}"`,
-			{
-				itemIndex,
-			},
-		);
-	}
-
-	const binaryData = item.binary[binaryPropertyName];
-	const formData: IDataObject = {};
-
-	// Add main file
-	formData.file = {
-		value: Buffer.from(binaryData.data, 'base64'),
-		options: {
-			filename: binaryData.fileName || 'file',
-			contentType: binaryData.mimeType,
-		},
-	};
-
-	return await makeApiRequestWithFormData.call(this, 'POST', '/v1/media/upload', formData, itemIndex);
-}
-
-async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const scheduledTime = this.getNodeParameter('scheduledTime', itemIndex) as string;
-	const isDraft = this.getNodeParameter('isDraft', itemIndex) as boolean;
-	const publications = this.getNodeParameter('publications.publication', itemIndex, []) as any[];
-
-	const body: IDataObject = {
-		scheduledTime,
-		isDraft,
-		publications: publications.map((pub) => {
-			const publication: IDataObject = {
-				socialMediaAccountId: pub.socialMediaAccountId,
-				posts: (pub.posts?.post || []).map((post: any) => {
-					const postData: IDataObject = {};
-					
-					// Only add non-empty values
-					if (post.content) postData.content = post.content;
-					if (post.chatId) postData.chatId = post.chatId;
-					if (post.thumbnailPath) postData.thumbnailPath = post.thumbnailPath;
-					
-					// Handle attachment paths - only add if there are valid paths
-					const attachmentPaths = (post.attachmentPaths?.path || [])
-						.map((path: any) => path.value)
-						.filter((value: string) => value && value.trim() !== '');
-					
-					if (attachmentPaths.length > 0) {
-						postData.attachmentPaths = attachmentPaths;
-					}
-					
-					return postData;
-				}),
-			};
-			
-			if (pub.platformSettings && pub.platformSettings.trim() !== '' && pub.platformSettings !== '{}') {
-				const parsedSettings = JSON.parse(pub.platformSettings);
-				if (parsedSettings && typeof parsedSettings === 'object' && Object.keys(parsedSettings).length > 0) {
-					publication.platformSettings = parsedSettings;
-				}
-			}
-			return publication;
-		}),
-	};
-
-	await makeApiRequest.call(this, 'POST', '/v1/posts', body);
-	
-	return body;
-}
-
-async function getConnectedChats(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const accountId = this.getNodeParameter('accountId', itemIndex) as number;
-	const platform = this.getNodeParameter('platform', itemIndex) as string;
-
-	const endpoint = `/v1/accounts/${accountId}/chats`;
-	const queryParams = { platform };
-
-	return await makeApiRequest.call(this, 'GET', endpoint, undefined, queryParams);
 }
