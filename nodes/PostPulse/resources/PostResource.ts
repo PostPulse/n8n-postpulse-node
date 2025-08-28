@@ -60,7 +60,5 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 		}),
 	};
 
-	await makeApiRequest.call(this, 'POST', '/v1/posts', body);
-	
-	return body;
+	return makeApiRequest.call(this, 'POST', '/v1/posts', body);
 }
