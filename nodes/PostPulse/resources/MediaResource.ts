@@ -1,10 +1,10 @@
 import type {
 	IExecuteFunctions,
-	IDataObject,
+	IRequestOptions,
 } from 'n8n-workflow';
 
 import { NodeOperationError } from 'n8n-workflow';
-import { makeApiRequestWithFormData } from '../helpers/ApiHelper';
+import { makeApiRequest } from '../helpers/ApiHelper';
 
 export async function executeMediaOperation(
 	this: IExecuteFunctions,
@@ -34,16 +34,53 @@ async function uploadMedia(this: IExecuteFunctions, itemIndex: number): Promise<
 	}
 
 	const binaryData = item.binary[binaryPropertyName];
-	const formData: IDataObject = {};
-
+	const filename = binaryData.fileName || 'file';
+	const contentType = binaryData.mimeType || 'application/octet-stream';
+	
+	// Get binary data buffer
 	const binaryBuffer = await this.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
-	formData.file = {
-		value: binaryBuffer,
-		options: {
-			filename: binaryData.fileName || 'file',
-			contentType: binaryData.mimeType,
+	const sizeBytes = binaryBuffer.length;
+
+	// Step 1: Get presigned upload URL
+	const uploadRequest = {
+		filename,
+		contentType,
+		sizeBytes,
+	};
+
+	const presignedResponse = await makeApiRequest.call(this, 'POST', '/v1/media/upload/urls', uploadRequest);
+	
+	if (!presignedResponse || !presignedResponse.url || !presignedResponse.key) {
+		throw new NodeOperationError(
+			this.getNode(),
+			'Failed to get presigned upload URL from PostPulse API',
+			{ itemIndex },
+		);
+	}
+
+	// Step 2: Upload file to presigned URL
+	const uploadOptions: IRequestOptions = {
+		method: presignedResponse.method || 'PUT',
+		url: presignedResponse.url,
+		body: binaryBuffer,
+		headers: {
+			...presignedResponse.headers,
+			'Content-Type': contentType,
 		},
 	};
 
-	return await makeApiRequestWithFormData.call(this, 'POST', '/v1/media/upload', formData, itemIndex);
+	try {
+		await this.helpers.request(uploadOptions);
+	} catch (error: any) {
+		throw new NodeOperationError(
+			this.getNode(),
+			`Failed to upload file to presigned URL: ${error.message}`,
+			{ itemIndex },
+		);
+	}
+
+	// Return key in backward-compatible format
+	return {
+		path: presignedResponse.key,
+	};
 }
