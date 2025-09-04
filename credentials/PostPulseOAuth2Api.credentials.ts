@@ -37,7 +37,7 @@ export class PostPulseOAuth2Api implements ICredentialType {
 			displayName: 'Scope',
 			name: 'scope',
 			type: 'hidden',
-			default: 'postpulse-api/accounts.read postpulse-api/api postpulse-api/media.write postpulse-api/posts.read postpulse-api/posts.write postpulse-api/webhooks.write',
+			default: 'postpulse-api/accounts.read postpulse-api/api postpulse-api/media.write postpulse-api/posts.read postpulse-api/posts.write',
 		},
 		{
 			displayName: 'Auth URI Query Parameters',
