@@ -133,6 +133,12 @@ export class PostPulse implements INodeType {
 						description: 'Upload media file',
 						action: 'Upload media',
 					},
+					{
+						name: 'Get Upload Status',
+						value: 'getUploadStatus',
+						description: 'Get the status of a media import job',
+						action: 'Get upload status',
+					},
 				],
 				default: 'upload',
 			},
@@ -159,6 +165,31 @@ export class PostPulse implements INodeType {
 			},
 			// Media Upload Fields
 			{
+				displayName: 'Upload Source',
+				name: 'uploadSource',
+				type: 'options',
+				options: [
+					{
+						name: 'From File',
+						value: 'file',
+						description: 'Upload a binary file from the workflow',
+					},
+					{
+						name: 'From Public URL',
+						value: 'url',
+						description: 'Import media from a public URL',
+					},
+				],
+				default: 'file',
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['upload'],
+					},
+				},
+				description: 'Choose whether to upload a file or import from a URL',
+			},
+			{
 				displayName: 'Input Binary Field',
 				name: 'binaryPropertyName',
 				type: 'string',
@@ -168,9 +199,56 @@ export class PostPulse implements INodeType {
 					show: {
 						resource: ['media'],
 						operation: ['upload'],
+						uploadSource: ['file'],
 					},
 				},
 				description: 'Name of the binary property which contains the file to upload',
+			},
+			{
+				displayName: 'URL',
+				name: 'url',
+				type: 'string',
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['upload'],
+						uploadSource: ['url'],
+					},
+				},
+				description: 'Public URL of the media to import',
+				placeholder: 'https://example.com/image.jpg',
+			},
+			{
+				displayName: 'Filename Hint',
+				name: 'filenameHint',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['upload'],
+						uploadSource: ['url'],
+					},
+				},
+				description: 'Optional filename hint for the imported media (max 255 characters)',
+				placeholder: 'my-image.jpg',
+			},
+			// Media Get Upload Status Fields
+			{
+				displayName: 'Import ID',
+				name: 'importId',
+				type: 'number',
+				default: 0,
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['getUploadStatus'],
+					},
+				},
+				description: 'The ID of the media import job to check status for',
 			},
 			// Post Schedule Fields
 			{

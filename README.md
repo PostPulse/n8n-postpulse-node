@@ -20,7 +20,7 @@
 - [Platform settings](#platform-settings)
 - [Media & text validations](#media--text-validations)
 - [Rate limits & API keys](#rate-limits--api-keys)
-- [Error handling & troubleshooting](#error-handling--troubleshooting)
+- [Webhooks](#webhooks)
 - [Examples](#examples)
 - [FAQ](#faq)
 - [Support](#support)
@@ -86,8 +86,18 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
 - **Output:** Array: `{ id, title }` — pass `chatId` into Telegram posts.
 
 ### Media: **Upload**
-- **Input:** File
-- **Output:** `{ path }` — use in `attachmentPaths` of posts.
+- **Input:** File or Public URL
+- **Output:** 
+  - File upload: `{ path }` — use in `attachmentPaths` of posts
+  - URL import: `{ id, state }` — use `id` with "Get Upload Status" to monitor progress
+- **Upload Sources:**
+  - **From File:** Upload binary file data (existing functionality)
+  - **From Public URL:** Import media from a public URL (new functionality)
+
+### Media: **Get Upload Status**
+- **Input:** `{ importId }` (from URL import response)
+- **Output:** Complete import status including `id`, `state`, `sourceUrl`, `bytesDownloaded`, `totalBytes`, `detectedMime`, `s3Key`, `errorCode`, `errorMessage`
+- **Use:** Monitor the progress of URL-based media imports
 
 ### Posts: **Schedule**
 - **Input:** `PostSchedule` (see [Data model](#data-model))
@@ -270,6 +280,30 @@ PostPulse Web enforces rich, platform-specific validations.
 
 ---
 
+## Webhooks
+
+PostPulse supports webhooks for real-time notifications instead of polling for status updates. This is especially useful for tracking:
+
+- **Post publishing status** — Get notified when scheduled posts are published or fail
+- **Media import progress** — Receive updates on URL-based media imports without polling the "Get Upload Status" endpoint
+
+### Setting up webhooks
+
+1. **Register webhook endpoints** at the [Developer Portal](https://developers.post-pulse.com)
+2. **Configure event types** you want to receive notifications for
+3. **Review webhook models** and event types in the developer documentation
+
+### Benefits over polling
+
+- **Real-time updates** — Instant notifications when events occur
+- **Reduced API calls** — No need to repeatedly poll status endpoints
+- **Better reliability** — Guaranteed delivery with retry mechanisms
+- **Lower latency** — Immediate response to status changes
+
+> **Learn more:** Visit [https://developers.post-pulse.com](https://developers.post-pulse.com) for complete webhook documentation, supported event types, and payload schemas.
+
+---
+
 ## Examples
 
 ### Minimal single-destination post (Reel)
@@ -337,12 +371,57 @@ PostPulse Web enforces rich, platform-specific validations.
 }
 ```
 
+### Media import from URL
+```json
+{
+  "url": "https://example.com/my-video.mp4",
+  "filenameHint": "promotional-video.mp4"
+}
+```
+**Response:**
+```json
+{
+  "id": 12345,
+  "state": "QUEUED"
+}
+```
+
+### Check media import status
+**Input:** `importId: 12345`
+
+**Response:**
+```json
+{
+  "id": 12345,
+  "state": "READY",
+  "sourceUrl": "https://example.com/my-video.mp4",
+  "bytesDownloaded": 15728640,
+  "totalBytes": 15728640,
+  "detectedMime": "video/mp4",
+  "s3Key": "6354d8d2-e0f1-702b-af6c-62e28e377ec7/promotional-video.mp4"
+}
+```
+
+> **Note:** Use the `s3Key` value in `attachmentPaths` when the state is `READY`.
+
 ---
 
 ## FAQ
 
 **Do I have to upload media to PostPulse even if I have a public URL?**  
-Yes. Platforms like TikTok/Instagram can validate source URLs; we require hosting under `post-pulse.com`.
+Not anymore! You can now use the "From Public URL" option in Media → Upload to import media directly from URLs. The system will download and host the media on `post-pulse.com` for platform compatibility.
+
+**How do I import media from a URL?**  
+Use Media → Upload with "From Public URL" option. Provide the URL and optionally a filename hint. The operation returns an import job ID and initial state. Use Media → Get Upload Status to monitor progress until the state becomes "READY".
+
+**What are the different import states?**  
+- `QUEUED`: Import job is waiting to start
+- `DOWNLOADING`: Media is being downloaded from the source URL
+- `VALIDATING`: Downloaded media is being validated
+- `UPLOADING`: Media is being uploaded to PostPulse storage
+- `READY`: Import complete, media ready to use (check `s3Key` field)
+- `FAILED_TEMPORARY`: Temporary failure, may retry automatically
+- `FAILED_PERMANENT`: Permanent failure, check `errorCode` and `errorMessage`
 
 **Can I draft then update later via the node?**  
 In v1 of the node, we recommend `isDraft: false`. Update endpoints will be exposed in a later version.
@@ -352,6 +431,9 @@ Create one `PostSchedule` with multiple `Publication` objects (one per account).
 
 **How do I set YouTube or TikTok titles?**  
 Titles live in **`platformSettings`** (see schemas above). `content` becomes description.
+
+**Should I use webhooks or polling for status updates?**  
+Webhooks are recommended for production workflows as they provide real-time notifications without the need to repeatedly call status endpoints. Set up webhooks at [https://developers.post-pulse.com](https://developers.post-pulse.com) to receive instant notifications for post publishing status and media import progress. Use polling (Get Upload Status) only for testing or when webhooks aren't feasible.
 
 ---
 
