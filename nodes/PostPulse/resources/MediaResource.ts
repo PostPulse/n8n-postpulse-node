@@ -1,6 +1,6 @@
 import type {
 	IExecuteFunctions,
-	IRequestOptions,
+	IHttpRequestOptions,
 } from 'n8n-workflow';
 
 import { NodeOperationError } from 'n8n-workflow';
@@ -77,7 +77,7 @@ async function uploadFromFile(this: IExecuteFunctions, itemIndex: number): Promi
 	}
 
 	// Step 2: Upload file to presigned URL
-	const uploadOptions: IRequestOptions = {
+	const uploadOptions: IHttpRequestOptions = {
 		method: presignedResponse.method || 'PUT',
 		url: presignedResponse.url,
 		body: binaryBuffer,
@@ -88,7 +88,7 @@ async function uploadFromFile(this: IExecuteFunctions, itemIndex: number): Promi
 	};
 
 	try {
-		await this.helpers.request(uploadOptions);
+		await this.helpers.httpRequest(uploadOptions);
 	} catch (error: any) {
 		throw new NodeOperationError(
 			this.getNode(),
