@@ -1,9 +1,9 @@
-import type {
-	IExecuteFunctions,
-	INodeExecutionData,
-	INodeType,
-	INodeTypeDescription,
-	NodeConnectionType,
+import {
+	NodeConnectionTypes,
+	type IExecuteFunctions,
+	type INodeExecutionData,
+	type INodeType,
+	type INodeTypeDescription,
 } from 'n8n-workflow';
 
 import { executeAccountOperation } from './resources/AccountResource';
@@ -22,8 +22,8 @@ export class PostPulse implements INodeType {
 		defaults: {
 			name: 'PostPulse',
 		},
-		inputs: [{ displayName: '', type: 'main' as NodeConnectionType }],
-		outputs: [{ displayName: '', type: 'main' as NodeConnectionType }],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'postPulseOAuth2Api',
