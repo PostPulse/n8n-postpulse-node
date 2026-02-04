@@ -1,5 +1,6 @@
 import type {
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	IDataObject,
 	IHttpRequestMethods,
 	IHttpRequestOptions,
@@ -8,7 +9,7 @@ import type {
 import { NodeOperationError } from 'n8n-workflow';
 
 export async function makeApiRequest(
-	this: IExecuteFunctions,
+	this: IExecuteFunctions | ILoadOptionsFunctions,
 	method: IHttpRequestMethods,
 	endpoint: string,
 	body?: IDataObject,

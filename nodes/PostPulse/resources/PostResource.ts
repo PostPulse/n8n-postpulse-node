@@ -15,6 +15,10 @@ export async function executePostOperation(
 		return await schedulePost.call(this, itemIndex);
 	}
 	
+	if (operation === 'scheduleLight') {
+		return await schedulePostLight.call(this, itemIndex);
+	}
+	
 	throw new NodeOperationError(this.getNode(), `Unknown post operation: ${operation}`, { itemIndex });
 }
 
@@ -62,3 +66,90 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 
 	return makeApiRequest.call(this, 'POST', '/v1/posts', body);
 }
+
+async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Promise<any> {
+	const scheduledTime = this.getNodeParameter('scheduledTime', itemIndex) as string;
+	const socialMediaAccountValue = this.getNodeParameter('socialMediaAccount', itemIndex) as string;
+	const content = this.getNodeParameter('content', itemIndex, '') as string;
+	const attachmentPathsString = this.getNodeParameter('attachmentPaths', itemIndex, '') as string;
+
+	// Parse the pipe-separated value to extract platform and ID
+	const [platform, accountIdStr] = socialMediaAccountValue.split('|');
+	const accountId = parseInt(accountIdStr, 10);
+
+	// Get chatId from Facebook Page or Telegram Channel if applicable
+	let chatId = '';
+	if (platform === 'FACEBOOK') {
+		chatId = this.getNodeParameter('facebookPage', itemIndex, '') as string;
+	} else if (platform === 'TELEGRAM') {
+		chatId = this.getNodeParameter('telegramChannel', itemIndex, '') as string;
+	}
+
+	// Build platform settings based on the platform
+	// Handle platform name vs API type mismatches
+	let apiType = platform;
+	if (platform === 'TIKTOK') {
+		apiType = 'TIK_TOK';
+	} else if (platform === 'X_TWITTER') {
+		apiType = 'TWITTER';
+	}
+	
+	const platformSettings: IDataObject = {
+		type: apiType,
+	};
+
+	// Add platform-specific fields
+	if (platform === 'INSTAGRAM') {
+		const publicationType = this.getNodeParameter('publicationType', itemIndex, 'FEED') as string;
+		platformSettings.publicationType = publicationType;
+	} else if (platform === 'FACEBOOK') {
+		const facebookPublicationType = this.getNodeParameter('facebookPublicationType', itemIndex, 'FEED') as string;
+		platformSettings.publicationType = facebookPublicationType;
+	} else if (platform === 'YOUTUBE') {
+		const youtubeTitle = this.getNodeParameter('youtubeTitle', itemIndex) as string;
+		platformSettings.title = youtubeTitle;
+	} else if (platform === 'TIKTOK') {
+		const tiktokTitle = this.getNodeParameter('tiktokTitle', itemIndex) as string;
+		platformSettings.title = tiktokTitle;
+		platformSettings.hasUsageConfirmation = true;
+	} else if (platform === 'THREADS') {
+		const threadsTopicTag = this.getNodeParameter('threadsTopicTag', itemIndex, '') as string;
+		if (threadsTopicTag && threadsTopicTag.trim() !== '') {
+			platformSettings.topicTag = threadsTopicTag;
+		}
+	}
+	// For X_TWITTER, BLUE_SKY, TELEGRAM, LINKEDIN - just send the type
+
+	// Build the post data
+	const postData: IDataObject = {};
+	if (content) postData.content = content;
+	if (chatId) postData.chatId = chatId;
+
+	// Handle attachment paths - parse comma-separated string
+	if (attachmentPathsString && attachmentPathsString.trim() !== '') {
+		const attachmentPaths = attachmentPathsString
+			.split(',')
+			.map((path: string) => path.trim())
+			.filter((path: string) => path !== '');
+		
+		if (attachmentPaths.length > 0) {
+			postData.attachmentPaths = attachmentPaths;
+		}
+	}
+
+	// Build the publication
+	const publication: IDataObject = {
+		socialMediaAccountId: accountId,
+		posts: [postData],
+		platformSettings,
+	};
+
+	const body: IDataObject = {
+		scheduledTime,
+		isDraft: false, // Always false for Light version
+		publications: [publication],
+	};
+
+	return makeApiRequest.call(this, 'POST', '/v1/posts', body);
+}
+

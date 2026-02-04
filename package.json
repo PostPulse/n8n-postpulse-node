@@ -1,6 +1,6 @@
 {
   "name": "@postpulse/n8n-nodes-postpulse",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "description": "n8n community node for PostPulse social media management",
   "keywords": [
     "n8n-community-node-package",

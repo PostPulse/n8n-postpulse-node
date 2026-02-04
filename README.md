@@ -3,8 +3,8 @@
 > **Official n8n integration for [PostPulse](https://post-pulse.com)** — schedule and publish content to multiple social networks from your n8n workflows.
 
 - **Auth:** OAuth2 (auto refresh) 
-- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Chats lookup)  
-- **Targets today:** Instagram, TikTok, YouTube, Threads, LinkedIn, Telegram, X, Bluesky  
+- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages lookup)  
+- **Targets today:** Facebook, Instagram, TikTok, YouTube, Threads, LinkedIn, Telegram, X, Bluesky  
 - **Use cases:** One-click multi-destination posting, media pipeline, automated campaigns
 
 ---
@@ -45,7 +45,6 @@
   ```bash
   npm install @postpulse/n8n-nodes-postpulse
   ```
-- Restart n8n and enable the node in **Settings → Community Nodes** if required.
 
 ---
 
@@ -62,16 +61,36 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
 
 ## Quick start
 
+### Using Schedule (Light) - Recommended for simple workflows
+
+1. **Media → Upload** *(if posting media)*
+   - **From File**: Upload binary file data
+     - Returns: `{ path }` — use this directly in attachment paths
+   - **From Public URL**: Import media from a URL
+     - Returns: `{ id, state }` 
+     - Then use **Media → Get Upload Status** with the `id` to monitor progress
+     - Wait until `state` is `READY`, then use the `s3Key` value in attachment paths
+2. **Posts → Schedule (Light)**
+   - Select your connected account from the dropdown (accounts loaded automatically)
+   - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
+   - Facebook and Telegram accounts: select Page/Channel from dropdowns (loaded automatically)
+   - Enter content and comma-separated attachment paths
+   - Set scheduled time and execute!
+
+### Using Schedule - Advanced workflows
+
+For multi-account posting or complex scenarios:
+
 1. **Accounts → Get Many**  
-   Retrieve your connected accounts. Save the `id` of targets you’ll post to.
-2. **Telegram → Get Connected Chats** *(only if posting to Telegram)*  
-   Input: `id` from step 1 (platform must be `TELEGRAM`). Output contains `id` per channel/chat.
-3. **Media → Upload** *(for any media)*  
-   Upload files (even if you have public URLs). Some platforms (e.g., TikTok/Instagram) require media hosted on post-pulse.com. Save the returned `path`.
+   Retrieve your connected accounts. Save the `id` of targets you'll post to.
+2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook manually)*  
+   Input: Account ID and platform. Output contains chat/page IDs.
+3. **Media → Upload** *(same as above)*
 4. **Posts → Schedule**  
    Build one `PostSchedule` with one or more `Publication`s.  
    - Set `scheduledTime` (past/now = queue immediately)
-   - For now, prefer `isDraft: false` (update APIs will come later).
+   - Manually construct `platformSettings` JSON
+   - For now, prefer `isDraft: false` (update APIs will come later)
 
 ---
 
@@ -103,6 +122,29 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
 - **Input:** `PostSchedule` (see [Data model](#data-model))
 - **Behavior:** Schedules one or multiple publications for the same time.
 - **Recommended:** `isDraft: false` (until update endpoints are exposed in node).
+
+### Posts: **Schedule (Light)**
+- **Purpose:** Simplified interface for scheduling a single post to one account
+- **Key Features:**
+  - **Platform-specific dynamic fields** — The UI automatically shows relevant fields based on the selected account's platform
+  - **Automatic platform settings** — No need to manually construct JSON; the node builds `platformSettings` automatically
+  - **Smart chat selection** — Facebook Pages and Telegram Channels appear as dropdowns (loaded from API)
+  - **Simple attachment paths** — Enter comma-separated media paths instead of managing collections
+- **Input Fields:**
+  - `Scheduled Time` — When to publish (UTC)
+  - `Social Media Account` — Dropdown of your connected accounts
+  - *Dynamic fields based on platform:*
+    - **Instagram**: Publication Type (Feed/Reels/Story)
+    - **Facebook**: Publication Type (Feed/Reels/Story) + Page dropdown
+    - **YouTube**: Video Title
+    - **TikTok**: Title
+    - **Threads**: Topic Tag (optional)
+    - **Telegram**: Channel dropdown
+    - **X/Twitter, BlueSky, LinkedIn**: No additional fields
+  - `Content` — Post text/caption (multi-line)
+  - `Attachment Paths` — Comma-separated media paths from Media → Upload
+- **Output:** Same as Schedule operation
+- **Use Case:** Perfect for simple workflows and testing; for complex multi-account or multi-post scenarios, use Schedule operation
 
 ---
 
@@ -404,6 +446,89 @@ PostPulse supports webhooks for real-time notifications instead of polling for s
 
 > **Note:** Use the `s3Key` value in `attachmentPaths` when the state is `READY`.
 
+### Schedule (Light) - Instagram Reel
+Using the simplified interface with automatic platform settings:
+
+**Node configuration:**
+- Scheduled Time: `2025-08-17T14:03:00`
+- Social Media Account: `INSTAGRAM - @fashionbrand`
+- Publication Type: `Reels` (automatically appears for Instagram)
+- Content: `New drop is live! #fashion`
+- Attachment Paths: `6354d8d2-e0f1-702b-af6c-62e28e377ec7/video.mp4`
+
+The node automatically builds this API request:
+```json
+{
+  "scheduledTime": "2025-08-17T14:03:00",
+  "isDraft": false,
+  "publications": [{
+    "socialMediaAccountId": 442,
+    "platformSettings": {
+      "type": "INSTAGRAM",
+      "publicationType": "REELS"
+    },
+    "posts": [{
+      "content": "New drop is live! #fashion",
+      "attachmentPaths": ["6354d8d2-e0f1-702b-af6c-62e28e377ec7/video.mp4"]
+    }]
+  }]
+}
+```
+
+### Schedule (Light) - Telegram with Channel Selection
+**Node configuration:**
+- Scheduled Time: `2025-08-17T14:03:00`
+- Social Media Account: `TELEGRAM - @mybot`
+- Channel: `Tech Updates` (loaded from API, shows connected channels)
+- Content: `Check out our latest update!`
+- Attachment Paths: `user1/screenshot.png, user1/demo.mp4`
+
+The node automatically builds this API request:
+```json
+{
+  "scheduledTime": "2025-08-17T14:03:00",
+  "isDraft": false,
+  "publications": [{
+    "socialMediaAccountId": 501,
+    "platformSettings": {
+      "type": "TELEGRAM"
+    },
+    "posts": [{
+      "chatId": "-1001234567890",
+      "content": "Check out our latest update!",
+      "attachmentPaths": ["user1/screenshot.png", "user1/demo.mp4"]
+    }]
+  }]
+}
+```
+
+### Schedule (Light) - YouTube Video
+**Node configuration:**
+- Scheduled Time: `2025-08-17T14:03:00`
+- Social Media Account: `YOUTUBE - @MyChannel`
+- Video Title: `Top 5 JavaScript Tips` (automatically appears for YouTube)
+- Content: `Full tutorial with code examples. Links in description.`
+- Attachment Paths: `user1/tutorial-video.mp4`
+
+The node automatically builds this API request:
+```json
+{
+  "scheduledTime": "2025-08-17T14:03:00",
+  "isDraft": false,
+  "publications": [{
+    "socialMediaAccountId": 777,
+    "platformSettings": {
+      "type": "YOUTUBE",
+      "title": "Top 5 JavaScript Tips"
+    },
+    "posts": [{
+      "content": "Full tutorial with code examples. Links in description.",
+      "attachmentPaths": ["user1/tutorial-video.mp4"]
+    }]
+  }]
+}
+```
+
 ---
 
 ## FAQ
@@ -440,7 +565,7 @@ Webhooks are recommended for production workflows as they provide real-time noti
 ## Support
 
 - **Developer Portal:** https://developers.post-pulse.com (for OAuth client setup and documentation)
-- **Discord Community:** [PostPulse for Developers](https://discord.gg/qCCH5Wzq) (feature requests, community support)
+- **Discord Community:** [PostPulse for Developers](https://discord.gg/yrMdD4R5) (feature requests, community support)
 - **Email Support:** support@post-pulse.com (technical issues and general inquiries)
 
 ---

@@ -4,11 +4,13 @@ import {
 	type INodeExecutionData,
 	type INodeType,
 	type INodeTypeDescription,
+	type ILoadOptionsFunctions,
 } from 'n8n-workflow';
 
 import { executeAccountOperation } from './resources/AccountResource';
 import { executeMediaOperation } from './resources/MediaResource';
 import { executePostOperation } from './resources/PostResource';
+import { makeApiRequest } from './helpers/ApiHelper';
 
 export class PostPulse implements INodeType {
 	description: INodeTypeDescription = {
@@ -160,6 +162,12 @@ export class PostPulse implements INodeType {
 						description: 'Schedule a post',
 						action: 'Schedule a post',
 					},
+					{
+						name: 'Schedule (Light)',
+						value: 'scheduleLight',
+						description: 'Schedule a post with simplified interface',
+						action: 'Schedule a light post',
+					},
 				],
 				default: 'schedule',
 			},
@@ -250,7 +258,7 @@ export class PostPulse implements INodeType {
 				},
 				description: 'The ID of the media import job to check status for',
 			},
-			// Post Schedule Fields
+			// Post Schedule (Original) Fields 
 			{
 				displayName: 'Scheduled Time',
 				name: 'scheduledTime',
@@ -263,7 +271,7 @@ export class PostPulse implements INodeType {
 						operation: ['schedule'],
 					},
 				},
-				description: 'When to schedule the post',
+				description: 'When to schedule the post (UTC time)',
 			},
 			{
 				displayName: 'Is Draft',
@@ -356,12 +364,15 @@ export class PostPulse implements INodeType {
 												name: 'chatId',
 												type: 'string',
 												default: '',
-												description: 'Chat ID for Telegram posts',
+												description: 'Chat ID for Telegram and Facebook posts',
 											},
 											{
 												displayName: 'Content',
 												name: 'content',
 												type: 'string',
+												typeOptions: {
+													rows: 5
+												},
 												default: '',
 												description: 'Post content/text',
 											},
@@ -380,7 +391,253 @@ export class PostPulse implements INodeType {
 					},
 				],
 			},
+			// Post Schedule (Light) Fields
+			{
+				displayName: 'Scheduled Time',
+				name: 'scheduledTime',
+				type: 'dateTime',
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
+				description: 'When to schedule the post (UTC time)',
+			},
+			{
+				displayName: 'Social Media Account Name or ID',
+				name: 'socialMediaAccount',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getAccounts',
+				},
+				default: '',
+				required: true,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Platform',
+				name: 'platform',
+				type: 'hidden',
+				default: '={{ $parameter.socialMediaAccount ? $parameter.socialMediaAccount.split("|")[0] : "" }}',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
+			},
+			// Dynamic fields for Instagram
+			{
+				displayName: 'Publication Type',
+				name: 'publicationType',
+				type: 'options',
+				options: [
+					{
+						name: 'Feed',
+						value: 'FEED',
+					},
+					{
+						name: 'Reels',
+						value: 'REELS',
+					},
+					{
+						name: 'Story',
+						value: 'STORY',
+					},
+				],
+				default: 'FEED',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['INSTAGRAM'],
+					},
+				},
+				description: 'Type of Instagram publication',
+			},
+			// Dynamic fields for Facebook
+			{
+				displayName: 'Publication Type',
+				name: 'facebookPublicationType',
+				type: 'options',
+				options: [
+					{
+						name: 'Feed',
+						value: 'FEED',
+					},
+					{
+						name: 'Reels',
+						value: 'REELS',
+					},
+					{
+						name: 'Story',
+						value: 'STORY',
+					},
+				],
+				default: 'FEED',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['FACEBOOK'],
+					},
+				},
+				description: 'Type of Facebook publication',
+			},
+			// Dynamic fields for YouTube
+			{
+				displayName: 'Video Title',
+				name: 'youtubeTitle',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['YOUTUBE'],
+					},
+				},
+				description: 'Title for the YouTube video',
+			},
+			// Dynamic fields for TikTok
+			{
+				displayName: 'Title',
+				name: 'tiktokTitle',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Title for the TikTok post',
+			},
+			// Dynamic fields for Threads
+			{
+				displayName: 'Topic Tag',
+				name: 'threadsTopicTag',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['THREADS'],
+					},
+				},
+				description: 'Optional topic tag for Threads post',
+			},
+			// Dynamic dropdowns for Facebook Pages and Telegram Channels
+			{
+				displayName: 'Page Name or ID',
+				name: 'facebookPage',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getConnectedChats',
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['FACEBOOK'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Channel Name or ID',
+				name: 'telegramChannel',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getConnectedChats',
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TELEGRAM'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Content',
+				name: 'content',
+				type: 'string',
+				typeOptions: {
+					rows: 5
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
+				description: 'Post content/text',
+			},
+			{
+				displayName: 'Attachment Paths',
+				name: 'attachmentPaths',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
+				placeholder: 'user_uuid/uuid1.jpg, user_uuid/uuid2.mp4, user_uuid/uuid3.png',
+				description: 'Comma-separated list of media attachment paths',
+			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			async getAccounts(this: ILoadOptionsFunctions) {
+				try {
+					const accounts = await makeApiRequest.call(this, 'GET', '/v1/accounts');
+					return accounts.map((account: any) => ({
+						name: `${account.platform} - @${account.accountUsername}`,
+						// Store both ID and platform in a pipe-separated format for easier matching
+						value: `${account.platform}|${account.id}`,
+					}));
+				} catch (error) {
+					// If API call fails, return empty array
+					return [];
+				}
+			},
+			async getConnectedChats(this: ILoadOptionsFunctions) {
+				try {
+					const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
+					const [platform, accountIdStr] = socialMediaAccount.split('|');
+					const accountId = parseInt(accountIdStr, 10);
+					
+					const chats = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/chats?platform=${platform}`);
+					return chats.map((chat: any) => ({
+						name: chat.title,
+						value: chat.id,
+					}));
+				} catch (error) {
+					// If API call fails, return empty array
+					return [];
+				}
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
