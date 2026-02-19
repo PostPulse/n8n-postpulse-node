@@ -25,16 +25,24 @@ export async function makeApiRequest(
 		json: true,
 		headers: {
 			'x-api-key': creds.clientId ?? ''
-		}
+		},
+		returnFullResponse: true,
+		ignoreHttpStatusErrors: true
 	};
 	if (body) options.body = body;
 	if (qs) options.qs = qs;
 
-	try {
-		return await this.helpers.httpRequestWithAuthentication.call(this, 'postPulseOAuth2Api', options);
-	} catch (error: any) {
-		throw new NodeOperationError(this.getNode(), `PostPulse API request failed: ${error.message}`, { itemIndex: 0 });
+	const response = await this.helpers.httpRequestWithAuthentication.call(this, 'postPulseOAuth2Api', options);
+	if (response.statusCode >= 400) {
+		const apiError = response.body?.error ?? JSON.stringify(response.body);
+
+		throw new NodeOperationError(
+			this.getNode(),
+			`PostPulse API error (${response.statusCode}): ${apiError}`,
+			{ itemIndex: 0 }
+		);
 	}
+	return response.body;
 }
 
 export async function makeApiRequestWithFormData(
