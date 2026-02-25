@@ -270,8 +270,20 @@ export class PostPulse implements INodeType {
 						resource: ['post'],
 						operation: ['schedule'],
 					},
+					},
+					description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
+			},
+			{
+				displayName: '⚠️ Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
+				name: 'timezoneNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['schedule'],
+					},
 				},
-				description: 'When to schedule the post (UTC time)',
 			},
 			{
 				displayName: 'Is Draft',
@@ -404,7 +416,19 @@ export class PostPulse implements INodeType {
 						operation: ['scheduleLight'],
 					},
 				},
-				description: 'When to schedule the post (UTC time)',
+				description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
+			},
+			{
+				displayName: '⚠️ Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
+				name: 'timezoneNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
 			},
 			{
 				displayName: 'Social Media Account Name or ID',

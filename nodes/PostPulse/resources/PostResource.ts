@@ -4,6 +4,7 @@ import type {
 } from 'n8n-workflow';
 
 import { NodeOperationError } from 'n8n-workflow';
+import { DateTime } from 'luxon';
 import { makeApiRequest } from '../helpers/ApiHelper';
 
 export async function executePostOperation(
@@ -23,7 +24,9 @@ export async function executePostOperation(
 }
 
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const scheduledTime = this.getNodeParameter('scheduledTime', itemIndex) as string;
+	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
+	const timezone = this.getTimezone();
+	const scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
 	const isDraft = this.getNodeParameter('isDraft', itemIndex) as boolean;
 	const publications = this.getNodeParameter('publications.publication', itemIndex, []) as any[];
 
@@ -68,7 +71,9 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 }
 
 async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const scheduledTime = this.getNodeParameter('scheduledTime', itemIndex) as string;
+	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
+	const timezone = this.getTimezone();
+	const scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
 	const socialMediaAccountValue = this.getNodeParameter('socialMediaAccount', itemIndex) as string;
 	const content = this.getNodeParameter('content', itemIndex, '') as string;
 	const attachmentPathsString = this.getNodeParameter('attachmentPaths', itemIndex, '') as string;

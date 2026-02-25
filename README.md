@@ -131,7 +131,7 @@ For multi-account posting or complex scenarios:
   - **Smart chat selection** — Facebook Pages and Telegram Channels appear as dropdowns (loaded from API)
   - **Simple attachment paths** — Enter comma-separated media paths instead of managing collections
 - **Input Fields:**
-  - `Scheduled Time` — When to publish (UTC)
+  - `Scheduled Time` — When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).
   - `Social Media Account` — Dropdown of your connected accounts
   - *Dynamic fields based on platform:*
     - **Instagram**: Publication Type (Feed/Reels/Story)

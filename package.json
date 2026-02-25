@@ -1,6 +1,6 @@
 {
   "name": "@postpulse/n8n-nodes-postpulse",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "n8n community node for PostPulse social media management",
   "keywords": [
     "n8n-community-node-package",
@@ -42,6 +42,7 @@
     ]
   },
   "devDependencies": {
+    "@types/luxon": "^3.7.1",
     "@typescript-eslint/parser": "~8.32.0",
     "eslint": "^8.57.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
@@ -50,7 +51,7 @@
     "typescript": "^5.8.2"
   },
   "peerDependencies": {
-    "n8n-workflow": "*"
+    "n8n-workflow": "^2.10.0"
   },
   "bugs": {
     "url": "https://github.com/PostPulse/n8n-postpulse-node/issues"
