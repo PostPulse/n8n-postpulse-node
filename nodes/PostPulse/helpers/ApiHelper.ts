@@ -26,8 +26,7 @@ export async function makeApiRequest(
 		headers: {
 			'x-api-key': creds.clientId ?? ''
 		},
-		returnFullResponse: true,
-		ignoreHttpStatusErrors: true
+		returnFullResponse: true
 	};
 	if (body) options.body = body;
 	if (qs) options.qs = qs;

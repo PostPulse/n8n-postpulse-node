@@ -37,6 +37,7 @@ export class PostPulse implements INodeType {
 			headers: {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
+				'x-api-key': '={{$credentials.clientId}}',
 			},
 		},
 		properties: [

@@ -1,5 +1,4 @@
 import type {
-	IAuthenticateGeneric,
 	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
@@ -58,16 +57,6 @@ export class PostPulseOAuth2Api implements ICredentialType {
 			default: 'https://api.post-pulse.com',
 		}
 	];
-
-	authenticate: IAuthenticateGeneric = {
-		type: 'generic',
-		properties: {
-			headers: {
-				Authorization: '=Bearer {{$credentials.accessToken}}',
-				'x-api-key': '={{$credentials.clientId}}',
-			},
-		},
-	};
 
 	test: ICredentialTestRequest = {
 		request: {
