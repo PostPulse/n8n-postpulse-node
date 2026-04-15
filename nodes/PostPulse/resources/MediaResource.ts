@@ -3,7 +3,7 @@ import type {
 	IHttpRequestOptions,
 } from 'n8n-workflow';
 
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeOperationError, sleep } from 'n8n-workflow';
 import { makeApiRequest } from '../helpers/ApiHelper';
 
 export async function executeMediaOperation(
@@ -97,6 +97,11 @@ async function uploadFromFile(this: IExecuteFunctions, itemIndex: number): Promi
 		);
 	}
 
+	// Step 3: Confirm upload (validates integrity for videos)
+	await makeApiRequest.call(this, 'POST', '/v1/media/upload/confirm', {
+		key: presignedResponse.key,
+	});
+
 	// Return key in backward-compatible format
 	return {
 		path: presignedResponse.key,
@@ -106,6 +111,7 @@ async function uploadFromFile(this: IExecuteFunctions, itemIndex: number): Promi
 async function uploadFromUrl(this: IExecuteFunctions, itemIndex: number): Promise<any> {
 	const url = this.getNodeParameter('url', itemIndex) as string;
 	const filenameHint = this.getNodeParameter('filenameHint', itemIndex, '') as string;
+	const waitForCompletion = this.getNodeParameter('waitForCompletion', itemIndex, false) as boolean;
 
 	if (!url) {
 		throw new NodeOperationError(
@@ -124,9 +130,10 @@ async function uploadFromUrl(this: IExecuteFunctions, itemIndex: number): Promis
 		importRequest.filenameHint = filenameHint;
 	}
 
+	let response: any;
 	try {
-		const response = await makeApiRequest.call(this, 'POST', '/v1/media/upload/import', importRequest);
-		
+		response = await makeApiRequest.call(this, 'POST', '/v1/media/upload/import', importRequest);
+
 		if (!response || typeof response.id === 'undefined') {
 			throw new NodeOperationError(
 				this.getNode(),
@@ -134,11 +141,6 @@ async function uploadFromUrl(this: IExecuteFunctions, itemIndex: number): Promis
 				{ itemIndex },
 			);
 		}
-
-		return {
-			id: response.id,
-			state: response.state,
-		};
 	} catch (error: any) {
 		throw new NodeOperationError(
 			this.getNode(),
@@ -146,6 +148,51 @@ async function uploadFromUrl(this: IExecuteFunctions, itemIndex: number): Promis
 			{ itemIndex },
 		);
 	}
+
+	// If not waiting for completion, return immediately (current behavior)
+	if (!waitForCompletion) {
+		return {
+			id: response.id,
+			state: response.state,
+		};
+	}
+
+	// Poll for completion
+	const pollingInterval = this.getNodeParameter('pollingInterval', itemIndex, 2) as number;
+	const maxWaitTime = this.getNodeParameter('maxWaitTime', itemIndex, 120) as number;
+	const maxAttempts = Math.ceil(maxWaitTime / pollingInterval);
+	const intervalMs = pollingInterval * 1000;
+
+	for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		await sleep(intervalMs);
+
+		const statusResponse = await makeApiRequest.call(
+			this,
+			'GET',
+			`/v1/media/upload/import/${response.id}`,
+		);
+
+		if (statusResponse.state === 'READY') {
+			return {
+				path: statusResponse.s3Key
+			};
+		}
+
+		if (statusResponse.state === 'FAILED_TEMPORARY' || statusResponse.state === 'FAILED_PERMANENT') {
+			const errorDetail = statusResponse.errorMessage || statusResponse.errorCode || 'Unknown error';
+			throw new NodeOperationError(
+				this.getNode(),
+				`Media import failed for ID ${response.id}: ${errorDetail}`,
+				{ itemIndex },
+			);
+		}
+	}
+
+	throw new NodeOperationError(
+		this.getNode(),
+		`Media import timed out after ${maxWaitTime} seconds for ID ${response.id}`,
+		{ itemIndex },
+	);
 }
 
 async function getUploadStatus(this: IExecuteFunctions, itemIndex: number): Promise<any> {

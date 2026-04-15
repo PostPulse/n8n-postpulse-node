@@ -24,14 +24,19 @@ export async function executePostOperation(
 }
 
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
-	const timezone = this.getTimezone();
-	const scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
+	const scheduleMode = this.getNodeParameter('scheduleMode', itemIndex, 'scheduled') as string;
+
+	let scheduledTime: string | null = null;
+	if (scheduleMode === 'scheduled') {
+		const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
+		const timezone = this.getTimezone();
+		scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
+	}
+
 	const isDraft = this.getNodeParameter('isDraft', itemIndex) as boolean;
 	const publications = this.getNodeParameter('publications.publication', itemIndex, []) as any[];
 
 	const body: IDataObject = {
-		scheduledTime,
 		isDraft,
 		publications: publications.map((pub) => {
 			const publication: IDataObject = {
@@ -67,13 +72,22 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 		}),
 	};
 
+	if (scheduledTime) {
+		body.scheduledTime = scheduledTime;
+	}
+
 	return makeApiRequest.call(this, 'POST', '/v1/posts', body);
 }
 
 async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Promise<any> {
-	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
-	const timezone = this.getTimezone();
-	const scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
+	const scheduleMode = this.getNodeParameter('scheduleMode', itemIndex, 'scheduled') as string;
+
+	let scheduledTime: string | null = null;
+	if (scheduleMode === 'scheduled') {
+		const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
+		const timezone = this.getTimezone();
+		scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
+	}
 	const socialMediaAccountValue = this.getNodeParameter('socialMediaAccount', itemIndex) as string;
 	const content = this.getNodeParameter('content', itemIndex, '') as string;
 	const attachmentPathsString = this.getNodeParameter('attachmentPaths', itemIndex, '') as string;
@@ -150,10 +164,13 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	};
 
 	const body: IDataObject = {
-		scheduledTime,
 		isDraft: false, // Always false for Light version
 		publications: [publication],
 	};
+
+	if (scheduledTime) {
+		body.scheduledTime = scheduledTime;
+	}
 
 	return makeApiRequest.call(this, 'POST', '/v1/posts', body);
 }

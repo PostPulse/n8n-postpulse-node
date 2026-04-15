@@ -64,18 +64,17 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
 ### Using Schedule (Light) - Recommended for simple workflows
 
 1. **Media → Upload** *(if posting media)*
-   - **From File**: Upload binary file data
+   - **From File**: Upload binary file data (automatically confirmed for integrity)
      - Returns: `{ path }` — use this directly in attachment paths
    - **From Public URL**: Import media from a URL
-     - Returns: `{ id, state }` 
-     - Then use **Media → Get Upload Status** with the `id` to monitor progress
-     - Wait until `state` is `READY`, then use the `s3Key` value in attachment paths
+     - With **Wait for Completion** enabled (recommended): polls until ready and returns `{ path }` — same shape as file upload
+     - With **Wait for Completion** disabled: returns `{ id, state }` — use **Media → Get Upload Status** to poll manually
 2. **Posts → Schedule (Light)**
+   - Choose **Schedule Mode**: "Post Now" (immediate) or "Schedule for Later" (pick a time)
    - Select your connected account from the dropdown (accounts loaded automatically)
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
    - Facebook and Telegram accounts: select Page/Channel from dropdowns (loaded automatically)
    - Enter content and comma-separated attachment paths
-   - Set scheduled time and execute!
 
 ### Using Schedule - Advanced workflows
 
@@ -88,7 +87,7 @@ For multi-account posting or complex scenarios:
 3. **Media → Upload** *(same as above)*
 4. **Posts → Schedule**  
    Build one `PostSchedule` with one or more `Publication`s.  
-   - Set `scheduledTime` (past/now = queue immediately)
+   - Choose "Post Now" or "Schedule for Later" (with a specific time)
    - Manually construct `platformSettings` JSON
    - For now, prefer `isDraft: false` (update APIs will come later)
 
@@ -107,11 +106,12 @@ For multi-account posting or complex scenarios:
 ### Media: **Upload**
 - **Input:** File or Public URL
 - **Output:** 
-  - File upload: `{ path }` — use in `attachmentPaths` of posts
-  - URL import: `{ id, state }` — use `id` with "Get Upload Status" to monitor progress
+  - File upload: `{ path }` — use in `attachmentPaths` of posts (upload is automatically confirmed for integrity)
+  - URL import (Wait for Completion ON): `{ path }` — same shape as file upload, ready to use
+  - URL import (Wait for Completion OFF): `{ id, state }` — use `id` with "Get Upload Status" to monitor progress manually
 - **Upload Sources:**
-  - **From File:** Upload binary file data (existing functionality)
-  - **From Public URL:** Import media from a public URL (new functionality)
+  - **From File:** Upload binary file data
+  - **From Public URL:** Import media from a public URL. Enable **Wait for Completion** to automatically poll until the import is ready (configurable polling interval and max wait time).
 
 ### Media: **Get Upload Status**
 - **Input:** `{ importId }` (from URL import response)
@@ -120,6 +120,7 @@ For multi-account posting or complex scenarios:
 
 ### Posts: **Schedule**
 - **Input:** `PostSchedule` (see [Data model](#data-model))
+- **Schedule Mode:** "Post Now" (publishes immediately, no `scheduledTime` needed) or "Schedule for Later" (pick a time)
 - **Behavior:** Schedules one or multiple publications for the same time.
 - **Recommended:** `isDraft: false` (until update endpoints are exposed in node).
 
@@ -131,7 +132,8 @@ For multi-account posting or complex scenarios:
   - **Smart chat selection** — Facebook Pages and Telegram Channels appear as dropdowns (loaded from API)
   - **Simple attachment paths** — Enter comma-separated media paths instead of managing collections
 - **Input Fields:**
-  - `Scheduled Time` — When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).
+  - `Schedule Mode` — "Post Now" (publishes immediately) or "Schedule for Later" (pick a time)
+  - `Scheduled Time` — *(only when "Schedule for Later")* When to schedule the post. Interpreted using the workflow timezone (see Workflow Settings).
   - `Social Media Account` — Dropdown of your connected accounts
   - *Dynamic fields based on platform:*
     - **Instagram**: Publication Type (Feed/Reels/Story)
@@ -153,7 +155,7 @@ For multi-account posting or complex scenarios:
 ### `PostSchedule`
 ```json
 {
-  "scheduledTime": "2025-08-17T14:03:00",
+  "scheduledTime": "2025-08-17T14:03:00",  // omit to post immediately
   "isDraft": false,
   "publications": [ /* Publication[] */ ]
 }
@@ -450,6 +452,7 @@ PostPulse supports webhooks for real-time notifications instead of polling for s
 Using the simplified interface with automatic platform settings:
 
 **Node configuration:**
+- Schedule Mode: `Schedule for Later`
 - Scheduled Time: `2025-08-17T14:03:00`
 - Social Media Account: `INSTAGRAM - @fashionbrand`
 - Publication Type: `Reels` (automatically appears for Instagram)
@@ -477,16 +480,15 @@ The node automatically builds this API request:
 
 ### Schedule (Light) - Telegram with Channel Selection
 **Node configuration:**
-- Scheduled Time: `2025-08-17T14:03:00`
+- Schedule Mode: `Post Now`
 - Social Media Account: `TELEGRAM - @mybot`
 - Channel: `Tech Updates` (loaded from API, shows connected channels)
 - Content: `Check out our latest update!`
 - Attachment Paths: `user1/screenshot.png, user1/demo.mp4`
 
-The node automatically builds this API request:
+The node automatically builds this API request (no `scheduledTime` — posts immediately):
 ```json
 {
-  "scheduledTime": "2025-08-17T14:03:00",
   "isDraft": false,
   "publications": [{
     "socialMediaAccountId": 501,
@@ -504,6 +506,7 @@ The node automatically builds this API request:
 
 ### Schedule (Light) - YouTube Video
 **Node configuration:**
+- Schedule Mode: `Schedule for Later`
 - Scheduled Time: `2025-08-17T14:03:00`
 - Social Media Account: `YOUTUBE - @MyChannel`
 - Video Title: `Top 5 JavaScript Tips` (automatically appears for YouTube)
@@ -537,7 +540,7 @@ The node automatically builds this API request:
 Not anymore! You can now use the "From Public URL" option in Media → Upload to import media directly from URLs. The system will download and host the media on `post-pulse.com` for platform compatibility.
 
 **How do I import media from a URL?**  
-Use Media → Upload with "From Public URL" option. Provide the URL and optionally a filename hint. The operation returns an import job ID and initial state. Use Media → Get Upload Status to monitor progress until the state becomes "READY".
+Use Media → Upload with "From Public URL" option. Provide the URL and optionally a filename hint. Enable **Wait for Completion** to have the node automatically poll until the media is ready — it returns `{ path }` just like file upload. Alternatively, disable Wait for Completion to get the import job ID and poll manually with Media → Get Upload Status.
 
 **What are the different import states?**  
 - `QUEUED`: Import job is waiting to start

@@ -244,6 +244,50 @@ export class PostPulse implements INodeType {
 				description: 'Optional filename hint for the imported media (max 255 characters)',
 				placeholder: 'my-image.jpg',
 			},
+			{
+				displayName: 'Wait for Completion',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['upload'],
+						uploadSource: ['url'],
+					},
+				},
+				description: 'Whether to poll the import status until the media is ready or the import fails, instead of returning immediately with the import ID',
+			},
+			{
+				displayName: 'Polling Interval (Seconds)',
+				name: 'pollingInterval',
+				type: 'number',
+				default: 2,
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['upload'],
+						uploadSource: ['url'],
+						waitForCompletion: [true],
+					},
+				},
+				description: 'How often to check the import status (in seconds)',
+			},
+			{
+				displayName: 'Max Wait Time (Seconds)',
+				name: 'maxWaitTime',
+				type: 'number',
+				default: 120,
+				displayOptions: {
+					show: {
+						resource: ['media'],
+						operation: ['upload'],
+						uploadSource: ['url'],
+						waitForCompletion: [true],
+					},
+				},
+				description: 'Maximum time to wait for the import to complete before timing out (in seconds)',
+			},
 			// Media Get Upload Status Fields
 			{
 				displayName: 'Import ID',
@@ -259,20 +303,43 @@ export class PostPulse implements INodeType {
 				},
 				description: 'The ID of the media import job to check status for',
 			},
-			// Post Schedule (Original) Fields 
+			// Post Schedule (Original) Fields
 			{
-				displayName: 'Scheduled Time',
-				name: 'scheduledTime',
-				type: 'dateTime',
-				required: true,
-				default: '',
+				displayName: 'Schedule Mode',
+				name: 'scheduleMode',
+				type: 'options',
+				options: [
+					{
+						name: 'Post Now',
+						value: 'now',
+					},
+					{
+						name: 'Schedule for Later',
+						value: 'scheduled',
+					},
+				],
+				default: 'scheduled',
 				displayOptions: {
 					show: {
 						resource: ['post'],
 						operation: ['schedule'],
 					},
+				},
+				description: 'Choose whether to post immediately or schedule for a specific time',
+			},
+			{
+				displayName: 'Scheduled Time',
+				name: 'scheduledTime',
+				type: 'dateTime',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['schedule'],
+						scheduleMode: ['scheduled'],
 					},
-					description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
+				},
+				description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
 			},
 			{
 				displayName: '⚠️ Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
@@ -283,6 +350,7 @@ export class PostPulse implements INodeType {
 					show: {
 						resource: ['post'],
 						operation: ['schedule'],
+						scheduleMode: ['scheduled'],
 					},
 				},
 			},
@@ -406,15 +474,38 @@ export class PostPulse implements INodeType {
 			},
 			// Post Schedule (Light) Fields
 			{
+				displayName: 'Schedule Mode',
+				name: 'scheduleMode',
+				type: 'options',
+				options: [
+					{
+						name: 'Post Now',
+						value: 'now',
+					},
+					{
+						name: 'Schedule for Later',
+						value: 'scheduled',
+					},
+				],
+				default: 'scheduled',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+					},
+				},
+				description: 'Choose whether to post immediately or schedule for a specific time',
+			},
+			{
 				displayName: 'Scheduled Time',
 				name: 'scheduledTime',
 				type: 'dateTime',
-				required: true,
 				default: '',
 				displayOptions: {
 					show: {
 						resource: ['post'],
 						operation: ['scheduleLight'],
+						scheduleMode: ['scheduled'],
 					},
 				},
 				description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
@@ -428,6 +519,7 @@ export class PostPulse implements INodeType {
 					show: {
 						resource: ['post'],
 						operation: ['scheduleLight'],
+						scheduleMode: ['scheduled'],
 					},
 				},
 			},
