@@ -1,17 +1,13 @@
 {
-	"node": "n8n-nodes-base.postPulse",
+	"node": "@postpulse/n8n-nodes-postpulse.postPulse",
 	"nodeVersion": "1.0",
-	"codex": {
-		"categories": ["Social Media"],
-		"subcategories": {
-			"Social Media": ["Content Management"]
-		},
-		"resources": {
-			"primaryDocumentation": [
-				{
-					"url": "https://developers.post-pulse.com"
-				}
-			]
-		}
+	"codexVersion": "1.0",
+	"categories": ["Marketing & Content"],
+	"resources": {
+		"primaryDocumentation": [
+			{
+				"url": "https://developers.post-pulse.com"
+			}
+		]
 	}
 }

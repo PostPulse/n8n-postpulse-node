@@ -1,4 +1,5 @@
 import type {
+	Icon,
 	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
@@ -12,6 +13,8 @@ export class PostPulseOAuth2Api implements ICredentialType {
 	displayName = 'PostPulse OAuth2 API';
 
 	documentationUrl = 'https://developers.post-pulse.com';
+
+	icon: Icon = 'file:postpulse.svg';
 
 	properties: INodeProperties[] = [
 		{

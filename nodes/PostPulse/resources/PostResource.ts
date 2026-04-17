@@ -4,7 +4,6 @@ import type {
 } from 'n8n-workflow';
 
 import { NodeOperationError } from 'n8n-workflow';
-import { DateTime } from 'luxon';
 import { makeApiRequest } from '../helpers/ApiHelper';
 
 export async function executePostOperation(
@@ -15,11 +14,11 @@ export async function executePostOperation(
 	if (operation === 'schedule') {
 		return await schedulePost.call(this, itemIndex);
 	}
-	
+
 	if (operation === 'scheduleLight') {
 		return await schedulePostLight.call(this, itemIndex);
 	}
-	
+
 	throw new NodeOperationError(this.getNode(), `Unknown post operation: ${operation}`, { itemIndex });
 }
 
@@ -29,8 +28,7 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 	let scheduledTime: string | null = null;
 	if (scheduleMode === 'scheduled') {
 		const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
-		const timezone = this.getTimezone();
-		scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
+		scheduledTime = new Date(scheduledTimeStr).toISOString()
 	}
 
 	const isDraft = this.getNodeParameter('isDraft', itemIndex) as boolean;
@@ -43,25 +41,25 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 				socialMediaAccountId: pub.socialMediaAccountId,
 				posts: (pub.posts?.post || []).map((post: any) => {
 					const postData: IDataObject = {};
-					
+
 					// Only add non-empty values
 					if (post.content) postData.content = post.content;
 					if (post.chatId) postData.chatId = post.chatId;
 					if (post.thumbnailPath) postData.thumbnailPath = post.thumbnailPath;
-					
+
 					// Handle attachment paths - only add if there are valid paths
 					const attachmentPaths = (post.attachmentPaths?.path || [])
 						.map((path: any) => path.value)
 						.filter((value: string) => value && value.trim() !== '');
-					
+
 					if (attachmentPaths.length > 0) {
 						postData.attachmentPaths = attachmentPaths;
 					}
-					
+
 					return postData;
 				}),
 			};
-			
+
 			if (pub.platformSettings && pub.platformSettings.trim() !== '' && pub.platformSettings !== '{}') {
 				const parsedSettings = JSON.parse(pub.platformSettings);
 				if (parsedSettings && typeof parsedSettings === 'object' && Object.keys(parsedSettings).length > 0) {
@@ -85,8 +83,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	let scheduledTime: string | null = null;
 	if (scheduleMode === 'scheduled') {
 		const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
-		const timezone = this.getTimezone();
-		scheduledTime = DateTime.fromISO(scheduledTimeStr, { zone: timezone }).toUTC().toISO();
+		scheduledTime = new Date(scheduledTimeStr).toISOString()
 	}
 	const socialMediaAccountValue = this.getNodeParameter('socialMediaAccount', itemIndex) as string;
 	const content = this.getNodeParameter('content', itemIndex, '') as string;
@@ -112,7 +109,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	} else if (platform === 'X_TWITTER') {
 		apiType = 'TWITTER';
 	}
-	
+
 	const platformSettings: IDataObject = {
 		type: apiType,
 	};
@@ -150,7 +147,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 			.split(',')
 			.map((path: string) => path.trim())
 			.filter((path: string) => path !== '');
-		
+
 		if (attachmentPaths.length > 0) {
 			postData.attachmentPaths = attachmentPaths;
 		}

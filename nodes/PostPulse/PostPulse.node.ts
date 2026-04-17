@@ -32,14 +32,6 @@ export class PostPulse implements INodeType {
 				required: true,
 			},
 		],
-		requestDefaults: {
-			baseURL: 'https://api.post-pulse.com',
-			headers: {
-				Accept: 'application/json',
-				'Content-Type': 'application/json',
-				'x-api-key': '={{$credentials.clientId}}',
-			},
-		},
 		properties: [
 			{
 				displayName: 'Resource',
@@ -726,33 +718,29 @@ export class PostPulse implements INodeType {
 	methods = {
 		loadOptions: {
 			async getAccounts(this: ILoadOptionsFunctions) {
-				try {
-					const accounts = await makeApiRequest.call(this, 'GET', '/v1/accounts');
-					return accounts.map((account: any) => ({
-						name: `${account.platform} - @${account.accountUsername}`,
-						// Store both ID and platform in a pipe-separated format for easier matching
-						value: `${account.platform}|${account.id}`,
-					}));
-				} catch (error) {
-					// If API call fails, return empty array
-					return [];
-				}
+				const accounts = await makeApiRequest.call(this, 'GET', '/v1/accounts');
+				return accounts.map((account: any) => ({
+					name: `${account.platform} - @${account.accountUsername}`,
+					// Store both ID and platform in a pipe-separated format for easier matching
+					value: `${account.platform}|${account.id}`,
+				}));
 			},
 			async getConnectedChats(this: ILoadOptionsFunctions) {
-				try {
-					const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
-					const [platform, accountIdStr] = socialMediaAccount.split('|');
-					const accountId = parseInt(accountIdStr, 10);
-					
-					const chats = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/chats?platform=${platform}`);
-					return chats.map((chat: any) => ({
-						name: chat.title,
-						value: chat.id,
-					}));
-				} catch (error) {
-					// If API call fails, return empty array
-					return [];
-				}
+				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
+				const [platform, accountIdStr] = socialMediaAccount.split('|');
+				const accountId = parseInt(accountIdStr, 10);
+
+				const chats = await makeApiRequest.call(
+					this,
+					'GET',
+					`/v1/accounts/${accountId}/chats`,
+					undefined,
+					{ platform },
+				);
+				return chats.map((chat: any) => ({
+					name: chat.title,
+					value: chat.id,
+				}));
 			},
 		},
 	};
