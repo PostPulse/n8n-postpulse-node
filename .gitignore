@@ -6,3 +6,10 @@ dist
 npm-debug.log*
 yarn.lock
 .vscode/launch.json
+
+# Memory bank
+CLAUDE.md
+.memory-bank
+
+#scripts for local run n8n
+scripts
