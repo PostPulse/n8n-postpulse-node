@@ -2,7 +2,7 @@
 
 - **Type**: Bug / regression
 - **Severity**: High — silently publishes posts at the wrong time
-- **Status**: Fixed 2026-09-04 (pending a live n8n re-run by the user)
+- **Status**: Done 2026-09-04 (verified on a live n8n run)
 - **Found**: 2026-09-02, during memory-bank codebase analysis
 
 ## Problem
@@ -167,5 +167,6 @@ The exported test case now converts correctly: `2026-09-05T09:00:00` with the
 workflow timezone `America/New_York` yields `2026-09-05T13:00:00.000Z`
 (previously `06:00:00.000Z`).
 
-Still open: subtask 5's live n8n run - re-run the `PostPulse Node Test`
-workflow with the rebuilt node and confirm the calendar shows 16:00 Kyiv time.
+Subtask 5 done: the `PostPulse Node Test` workflow was re-run on the local
+n8n install with the rebuilt node and the workflow timezone is now honoured.
+Task closed.

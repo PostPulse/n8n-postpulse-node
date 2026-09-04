@@ -5,7 +5,7 @@
 Findings from the 2026-09-02 codebase analysis. Not yet started; details in
 [`./plan/`](./plan/).
 
-- [~] **001 — `scheduledTime` ignores the workflow timezone** (bug, high) — *fixed 2026-09-04, awaiting the live n8n re-run* —
+- [x] **001 — `scheduledTime` ignores the workflow timezone** (bug, high) — *done 2026-09-04* —
   [plan](./plan/001-scheduled-time-workflow-timezone.md)
   `new Date(str).toISOString()` in `PostResource.ts:31,86` interprets a naive
   date-time in the *server's* timezone. The workflow-timezone handling added

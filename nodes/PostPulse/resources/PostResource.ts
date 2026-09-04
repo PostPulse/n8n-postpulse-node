@@ -5,6 +5,7 @@ import type {
 
 import { NodeOperationError } from 'n8n-workflow';
 import { makeApiRequest } from '../helpers/ApiHelper';
+import { toUtcIsoInTimezone } from '../helpers/DateHelper';
 
 export async function executePostOperation(
 	this: IExecuteFunctions,
@@ -22,13 +23,26 @@ export async function executePostOperation(
 	throw new NodeOperationError(this.getNode(), `Unknown post operation: ${operation}`, { itemIndex });
 }
 
+/**
+ * Reads the `scheduledTime` parameter and converts it to a UTC ISO string,
+ * interpreting a naive value in the workflow timezone (Workflow Settings).
+ */
+function resolveScheduledTime(this: IExecuteFunctions, itemIndex: number): string {
+	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string | Date;
+
+	try {
+		return toUtcIsoInTimezone(scheduledTimeStr, this.getTimezone());
+	} catch (error) {
+		throw new NodeOperationError(this.getNode(), (error as Error).message, { itemIndex });
+	}
+}
+
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
 	const scheduleMode = this.getNodeParameter('scheduleMode', itemIndex, 'scheduled') as string;
 
 	let scheduledTime: string | null = null;
 	if (scheduleMode === 'scheduled') {
-		const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
-		scheduledTime = new Date(scheduledTimeStr).toISOString()
+		scheduledTime = resolveScheduledTime.call(this, itemIndex);
 	}
 
 	const isDraft = this.getNodeParameter('isDraft', itemIndex) as boolean;
@@ -82,8 +96,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 
 	let scheduledTime: string | null = null;
 	if (scheduleMode === 'scheduled') {
-		const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string;
-		scheduledTime = new Date(scheduledTimeStr).toISOString()
+		scheduledTime = resolveScheduledTime.call(this, itemIndex);
 	}
 	const socialMediaAccountValue = this.getNodeParameter('socialMediaAccount', itemIndex) as string;
 	const content = this.getNodeParameter('content', itemIndex, '') as string;
