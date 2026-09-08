@@ -98,13 +98,22 @@ async function uploadFromFile(this: IExecuteFunctions, itemIndex: number): Promi
 	}
 
 	// Step 3: Confirm upload (validates integrity for videos)
-	await makeApiRequest.call(this, 'POST', '/v1/media/upload/confirm', {
+	const confirmResponse = await makeApiRequest.call(this, 'POST', '/v1/media/upload/confirm', {
 		key: presignedResponse.key,
 	});
 
+	// Confirm returns the media as it is actually stored: when the uploaded bytes turn
+	// out to be a different format than the filename declared, the object is re-keyed to
+	// an honest extension, so the signed key goes stale. `path` holds the full S3 key
+	// (`key` is only the filename part). Older backends answered 204 - fall back then.
+	const confirmedPath =
+		typeof confirmResponse?.path === 'string' && confirmResponse.path
+			? confirmResponse.path
+			: presignedResponse.key;
+
 	// Return key in backward-compatible format
 	return {
-		path: presignedResponse.key,
+		path: confirmedPath,
 	};
 }
 

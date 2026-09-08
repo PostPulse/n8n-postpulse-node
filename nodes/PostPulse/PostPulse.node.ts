@@ -712,6 +712,21 @@ export class PostPulse implements INodeType {
 				placeholder: 'user_uuid/uuid1.jpg, user_uuid/uuid2.mp4, user_uuid/uuid3.png',
 				description: 'Comma-separated list of media attachment paths',
 			},
+			// Optional parameters supported by Instagram and TikTok only
+			{
+				displayName: 'AI Content',
+				name: 'aiContent',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['INSTAGRAM', 'TIKTOK'],
+					},
+				},
+				description: 'Whether the content is generated or significantly edited with AI',
+			},
 		],
 	};
 

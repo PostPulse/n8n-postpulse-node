@@ -149,6 +149,11 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	}
 	// For X_TWITTER, BLUE_SKY, TELEGRAM, LINKEDIN - just send the type
 
+	// Additional parameters - only Instagram and TikTok support them
+	if (platform === 'INSTAGRAM' || platform === 'TIKTOK') {
+		platformSettings.aiContent = this.getNodeParameter('aiContent', itemIndex, false) as boolean;
+	}
+
 	// Build the post data
 	const postData: IDataObject = {};
 	if (content) postData.content = content;

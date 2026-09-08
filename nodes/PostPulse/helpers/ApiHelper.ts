@@ -48,34 +48,3 @@ export async function makeApiRequest(
 		throw new NodeApiError(this.getNode(), error as JsonObject);
 	}
 }
-
-export async function makeApiRequestWithFormData(
-	this: IExecuteFunctions,
-	method: IHttpRequestMethods,
-	endpoint: string,
-	formData: IDataObject,
-): Promise<any> {
-	const creds = await this.getCredentials('postPulseOAuth2Api') as { baseUrl?: string };
-	const baseUrl = (creds.baseUrl || 'https://api.post-pulse.com').replace(/\/+$/, '');
-	const url = `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-
-	const options: IHttpRequestOptions = {
-		method,
-		url,
-		body: formData,
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-		},
-	};
-
-	try {
-		const response = await this.helpers.httpRequestWithAuthentication.call(
-			this,
-			'postPulseOAuth2Api',
-			options,
-		);
-		return typeof response === 'string' ? JSON.parse(response) : response;
-	} catch (error) {
-		throw new NodeApiError(this.getNode(), error as JsonObject);
-	}
-}
