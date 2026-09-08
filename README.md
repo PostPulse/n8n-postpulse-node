@@ -75,6 +75,7 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
    - Facebook and Telegram accounts: select Page/Channel from dropdowns (loaded automatically)
    - Enter content and comma-separated attachment paths
+   - Instagram and TikTok accounts: optionally turn on the **AI Content** toggle (off by default) to label the post as AI-generated
 
 ### Using Schedule - Advanced workflows
 
@@ -87,7 +88,7 @@ For multi-account posting or complex scenarios:
 3. **Media → Upload** *(same as above)*
 4. **Posts → Schedule**  
    Build one `PostSchedule` with one or more `Publication`s.  
-   - Choose "Post Now" or "Schedule for Later" (with a specific time)
+   - Choose "Post Now" or "Schedule for Later" (with a specific time, interpreted in the workflow timezone)
    - Manually construct `platformSettings` JSON
    - For now, prefer `isDraft: false` (update APIs will come later)
 
@@ -107,6 +108,7 @@ For multi-account posting or complex scenarios:
 - **Input:** File or Public URL
 - **Output:** 
   - File upload: `{ path }` — use in `attachmentPaths` of posts (upload is automatically confirmed for integrity)
+    > Always use the returned `path`, not the name of the file you uploaded. During confirmation PostPulse detects the real media format from the file bytes; if it doesn't match the filename extension (e.g. a `.mov` file renamed to `.mp4`), the stored file is renamed to the correct extension and `path` reflects the corrected name.
   - URL import (Wait for Completion ON): `{ path }` — same shape as file upload, ready to use
   - URL import (Wait for Completion OFF): `{ id, state }` — use `id` with "Get Upload Status" to monitor progress manually
 - **Upload Sources:**
@@ -121,6 +123,7 @@ For multi-account posting or complex scenarios:
 ### Posts: **Schedule**
 - **Input:** `PostSchedule` (see [Data model](#data-model))
 - **Schedule Mode:** "Post Now" (publishes immediately, no `scheduledTime` needed) or "Schedule for Later" (pick a time)
+- **Scheduled Time:** Interpreted using the workflow timezone (see Workflow Settings) and sent to the API as UTC. A value with an explicit offset or `Z` is used as-is.
 - **Behavior:** Schedules one or multiple publications for the same time.
 - **Recommended:** `isDraft: false` (until update endpoints are exposed in node).
 
@@ -145,6 +148,7 @@ For multi-account posting or complex scenarios:
     - **X/Twitter, BlueSky, LinkedIn**: No additional fields
   - `Content` — Post text/caption (multi-line)
   - `Attachment Paths` — Comma-separated media paths from Media → Upload
+  - `AI Content` — *(Instagram and TikTok only)* Toggle, **off by default**. Turn on when the content is generated or significantly edited with AI; the node sends it as `aiContent` in `platformSettings`.
 - **Output:** Same as Schedule operation
 - **Use Case:** Perfect for simple workflows and testing; for complex multi-account or multi-post scenarios, use Schedule operation
 
@@ -155,7 +159,7 @@ For multi-account posting or complex scenarios:
 ### `PostSchedule`
 ```json
 {
-  "scheduledTime": "2025-08-17T14:03:00",  // omit to post immediately
+  "scheduledTime": "2025-08-17T14:03:00",  // omit to post immediately; naive values are read in the workflow timezone
   "isDraft": false,
   "publications": [ /* Publication[] */ ]
 }
@@ -207,7 +211,8 @@ Supported shapes:
 ```json
 {
   "type": "INSTAGRAM",
-  "publicationType": "FEED" | "REELS" | "STORY"
+  "publicationType": "FEED" | "REELS" | "STORY",
+  "aiContent": false            // optional, default false — mark the post as AI-generated
 }
 ```
 
@@ -238,9 +243,12 @@ Supported shapes:
   "disableStitch": false,
   "brandContent": false,
   "brandOrganic": true,
-  "hasUsageConfirmation": true
+  "hasUsageConfirmation": true,
+  "aiContent": false            // optional, default false — mark the post as AI-generated
 }
 ```
+
+> **AI Content:** `aiContent` is supported by Instagram and TikTok only. In **Schedule (Light)** it appears as the **AI Content** toggle for those platforms (off by default); in **Schedule** set it directly in `platformSettings`.
 
 ### YouTube
 ```json
@@ -262,8 +270,10 @@ PostPulse Web enforces rich, platform-specific validations.
 | Validation area | PostPulse Web | PostPulse API (current) |
 |---|---|---|
 | X: Standard users can post up to 280 characters per tweet | UI warning | **You must validate** |
-| X: Supported image formats are JPG, PNG, and WEBP | Enforced | **You must validate** |
+| X: Supported image formats are JPG, PNG, GIF, and WEBP | Enforced | **You must validate** |
 | X: Image size should be less than or equal 5MB | Enforced | **You must validate** |
+| X: Animated GIF size should be less than or equal 15MB | Enforced | **You must validate** |
+| X: One post is either up to 4 images, 1 animated GIF, or 1 video | Enforced | **You must validate** |
 | X: Video size should be less than or equal 512MB | Enforced | **You must validate** |
 | X: Maximum 4 media attachments | Enforced | **You must validate** |
 | X: Video duration must be between 0.5 sec and 140 sec | Enforced | **You must validate** |
@@ -559,6 +569,15 @@ Create one `PostSchedule` with multiple `Publication` objects (one per account).
 
 **How do I set YouTube or TikTok titles?**  
 Titles live in **`platformSettings`** (see schemas above). `content` becomes description.
+
+**How do I label a post as AI-generated?**  
+For Instagram and TikTok, turn on the **AI Content** toggle in Schedule (Light) (it is off by default), or set `"aiContent": true` in `platformSettings` when using Schedule. Other platforms ignore this setting.
+
+**Which timezone is Scheduled Time in?**  
+The workflow timezone (n8n → Workflow Settings → Timezone). A naive value like `2025-08-17T14:03:00` is converted from that timezone to UTC before it is sent to the API. If the value already carries an offset or `Z`, it is used as-is.
+
+**Why does the upload `path` differ from my filename?**  
+PostPulse validates the real media format after upload. If the bytes don't match the extension (e.g. a `.mov` renamed to `.mp4`), the stored file is renamed to the correct extension. Always pass the `path` returned by Media → Upload into `attachmentPaths`.
 
 **Should I use webhooks or polling for status updates?**  
 Webhooks are recommended for production workflows as they provide real-time notifications without the need to repeatedly call status endpoints. Set up webhooks at [https://developers.post-pulse.com](https://developers.post-pulse.com) to receive instant notifications for post publishing status and media import progress. Use polling (Get Upload Status) only for testing or when webhooks aren't feasible.
