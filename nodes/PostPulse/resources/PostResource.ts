@@ -74,21 +74,11 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 				}),
 			};
 
-			let platformSettings: IDataObject = {};
 			if (pub.platformSettings && pub.platformSettings.trim() !== '' && pub.platformSettings !== '{}') {
 				const parsedSettings = JSON.parse(pub.platformSettings);
-				if (parsedSettings && typeof parsedSettings === 'object') {
-					platformSettings = parsedSettings;
+				if (parsedSettings && typeof parsedSettings === 'object' && Object.keys(parsedSettings).length > 0) {
+					publication.platformSettings = parsedSettings;
 				}
-			}
-
-			// Only Instagram and TikTok read this flag; other platforms ignore it
-			if (pub.aiContent === true) {
-				platformSettings.aiContent = true;
-			}
-
-			if (Object.keys(platformSettings).length > 0) {
-				publication.platformSettings = platformSettings;
 			}
 			return publication;
 		}),
@@ -141,7 +131,6 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	if (platform === 'INSTAGRAM') {
 		const publicationType = this.getNodeParameter('publicationType', itemIndex, 'FEED') as string;
 		platformSettings.publicationType = publicationType;
-		platformSettings.aiContent = this.getNodeParameter('aiContent', itemIndex, false) as boolean;
 	} else if (platform === 'FACEBOOK') {
 		const facebookPublicationType = this.getNodeParameter('facebookPublicationType', itemIndex, 'FEED') as string;
 		platformSettings.publicationType = facebookPublicationType;
@@ -152,7 +141,6 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 		const tiktokTitle = this.getNodeParameter('tiktokTitle', itemIndex) as string;
 		platformSettings.title = tiktokTitle;
 		platformSettings.hasUsageConfirmation = true;
-		platformSettings.aiContent = this.getNodeParameter('aiContent', itemIndex, false) as boolean;
 	} else if (platform === 'THREADS') {
 		const threadsTopicTag = this.getNodeParameter('threadsTopicTag', itemIndex, '') as string;
 		if (threadsTopicTag && threadsTopicTag.trim() !== '') {
@@ -160,6 +148,11 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 		}
 	}
 	// For X_TWITTER, BLUE_SKY, TELEGRAM, LINKEDIN - just send the type
+
+	// Additional parameters - only Instagram and TikTok support them
+	if (platform === 'INSTAGRAM' || platform === 'TIKTOK') {
+		platformSettings.aiContent = this.getNodeParameter('aiContent', itemIndex, false) as boolean;
+	}
 
 	// Build the post data
 	const postData: IDataObject = {};
