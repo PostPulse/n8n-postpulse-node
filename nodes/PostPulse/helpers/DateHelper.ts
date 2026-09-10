@@ -10,6 +10,9 @@
  * `dependencies` list (n8n community node rule).
  */
 
+import type { INode } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
+
 // `2026-09-05T09:00`, `2026-09-05T09:00:00`, `2026-09-05 09:00:00.123`
 const NAIVE_DATE_TIME =
 	/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3})\d*)?)?$/;
@@ -62,33 +65,45 @@ function getTimezoneOffsetMs(instant: Date, timeZone: string): number {
  *   only normalised to UTC.
  * - A naive value is interpreted as wall-clock time in `timezone`.
  *
- * @throws {Error} when the value cannot be parsed or the timezone is unknown.
+ * @throws {NodeOperationError} when the value cannot be parsed or the timezone
+ * is unknown.
  */
-export function toUtcIsoInTimezone(value: string | Date, timezone: string): string {
+export function toUtcIsoInTimezone(
+	value: string | Date,
+	timezone: string,
+	node: INode,
+	itemIndex?: number,
+): string {
 	if (value instanceof Date) {
 		if (Number.isNaN(value.getTime())) {
-			throw new Error('The scheduled time is not a valid date');
+			throw new NodeOperationError(node, 'The scheduled time is not a valid date', { itemIndex });
 		}
 		return value.toISOString();
 	}
 
 	const trimmed = typeof value === 'string' ? value.trim() : '';
 	if (trimmed === '') {
-		throw new Error('The scheduled time is empty');
+		throw new NodeOperationError(node, 'The scheduled time is empty', { itemIndex });
 	}
 
 	if (HAS_OFFSET.test(trimmed)) {
 		const withOffset = new Date(trimmed);
 		if (Number.isNaN(withOffset.getTime())) {
-			throw new Error(`The scheduled time "${trimmed}" is not a valid date`);
+			throw new NodeOperationError(
+				node,
+				`The scheduled time "${trimmed}" is not a valid date`,
+				{ itemIndex },
+			);
 		}
 		return withOffset.toISOString();
 	}
 
 	const match = NAIVE_DATE_TIME.exec(trimmed);
 	if (!match) {
-		throw new Error(
+		throw new NodeOperationError(
+			node,
 			`The scheduled time "${trimmed}" is not a valid date-time. Expected a format like 2026-09-05T09:00:00`,
+			{ itemIndex },
 		);
 	}
 
@@ -114,7 +129,11 @@ export function toUtcIsoInTimezone(value: string | Date, timezone: string): stri
 		roundTrip.getUTCHours() !== Number(hour) ||
 		roundTrip.getUTCMinutes() !== Number(minute)
 	) {
-		throw new Error(`The scheduled time "${trimmed}" is not a valid date-time`);
+		throw new NodeOperationError(
+			node,
+			`The scheduled time "${trimmed}" is not a valid date-time`,
+			{ itemIndex },
+		);
 	}
 
 	// The offset depends on the instant, and the instant depends on the offset.
@@ -124,7 +143,7 @@ export function toUtcIsoInTimezone(value: string | Date, timezone: string): stri
 	try {
 		offset = getTimezoneOffsetMs(new Date(wallClock), timezone);
 	} catch {
-		throw new Error(`Unknown workflow timezone "${timezone}"`);
+		throw new NodeOperationError(node, `Unknown workflow timezone "${timezone}"`, { itemIndex });
 	}
 
 	let utc = wallClock - offset;
