@@ -30,11 +30,7 @@ export async function executePostOperation(
 function resolveScheduledTime(this: IExecuteFunctions, itemIndex: number): string {
 	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string | Date;
 
-	try {
-		return toUtcIsoInTimezone(scheduledTimeStr, this.getTimezone());
-	} catch (error) {
-		throw new NodeOperationError(this.getNode(), (error as Error).message, { itemIndex });
-	}
+	return toUtcIsoInTimezone(scheduledTimeStr, this.getTimezone(), this.getNode(), itemIndex);
 }
 
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
