@@ -13,7 +13,7 @@ import { executeAccountOperation } from './resources/AccountResource';
 import { executeMediaOperation } from './resources/MediaResource';
 import { executePostOperation } from './resources/PostResource';
 import { makeApiRequest } from './helpers/ApiHelper';
-import { TIKTOK_PRIVACY_LEVEL_LABELS } from './helpers/TikTokHelper';
+import { TIKTOK_PRIVACY_LEVEL_LABELS, fetchTikTokCreatorInfo } from './helpers/TikTokHelper';
 
 export class PostPulse implements INodeType {
 	description: INodeTypeDescription = {
@@ -722,9 +722,8 @@ export class PostPulse implements INodeType {
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getTikTokPrivacyLevels',
-					loadOptionsDependsOn: ['socialMediaAccount'],
+					loadOptionsDependsOn: ['socialMediaAccount', 'tiktokDiscloseContent', 'tiktokBrandContent'],
 				},
-				required: true,
 				default: '',
 				displayOptions: {
 					show: {
@@ -747,7 +746,7 @@ export class PostPulse implements INodeType {
 						platform: ['TIKTOK'],
 					},
 				},
-				description: 'Whether other TikTok users can comment on the post',
+				description: 'Whether other TikTok users can comment on the post. Always off when comments are disabled in the account\'s TikTok app settings.',
 			},
 			{
 				displayName: 'Allow Duet',
@@ -761,7 +760,7 @@ export class PostPulse implements INodeType {
 						platform: ['TIKTOK'],
 					},
 				},
-				description: 'Whether other TikTok users can make Duets with the post. Not applicable to photo posts.',
+				description: 'Whether other TikTok users can make Duets with the post. Not applicable to photo posts. Always off when Duet is disabled in the account\'s TikTok app settings.',
 			},
 			{
 				displayName: 'Allow Stitch',
@@ -775,7 +774,7 @@ export class PostPulse implements INodeType {
 						platform: ['TIKTOK'],
 					},
 				},
-				description: 'Whether other TikTok users can make Stitches with the post. Not applicable to photo posts.',
+				description: 'Whether other TikTok users can make Stitches with the post. Not applicable to photo posts. Always off when Stitch is disabled in the account\'s TikTok app settings.',
 			},
 			{
 				displayName: 'Auto Add Music',
@@ -832,7 +831,9 @@ export class PostPulse implements INodeType {
 						platform: ['TIKTOK'],
 						tiktokDiscloseContent: [true],
 					},
-					hide: {
+				},
+				disabledOptions: {
+					show: {
 						tiktokPrivacyLevel: ['SELF_ONLY'],
 					},
 				},
@@ -911,6 +912,21 @@ export class PostPulse implements INodeType {
 						resource: ['post'],
 						operation: ['scheduleLight'],
 						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [false],
+					},
+				},
+			},
+			{
+				displayName: 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>',
+				name: 'tiktokDisclosedUsageConfirmationNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
 					},
 					hide: {
 						tiktokBrandContent: [true],
@@ -970,18 +986,18 @@ export class PostPulse implements INodeType {
 				}
 				const accountId = parseInt(accountIdStr, 10);
 
-				const creatorInfo = await makeApiRequest.call(
-					this,
-					'GET',
-					`/v1/accounts/${accountId}/tiktok/creator-info`,
-				);
-				const privacyLevels: string[] = creatorInfo?.data?.privacy_level_options?.length
-					? creatorInfo.data.privacy_level_options
-					: Object.keys(TIKTOK_PRIVACY_LEVEL_LABELS);
-				return privacyLevels.map((level) => ({
-					name: TIKTOK_PRIVACY_LEVEL_LABELS[level] ?? level,
-					value: level,
-				}));
+				const creatorInfo = await fetchTikTokCreatorInfo.call(this, accountId);
+				const privacyLevels = creatorInfo?.privacy_level_options ?? Object.keys(TIKTOK_PRIVACY_LEVEL_LABELS);
+				// Branded content can't be private, so Only me is not offered while it is selected
+				const isBrandedContent =
+					this.getCurrentNodeParameter('tiktokDiscloseContent') === true &&
+					this.getCurrentNodeParameter('tiktokBrandContent') === true;
+				return privacyLevels
+					.filter((level) => !(isBrandedContent && level === 'SELF_ONLY'))
+					.map((level) => ({
+						name: TIKTOK_PRIVACY_LEVEL_LABELS[level] ?? level,
+						value: level,
+					}));
 			},
 		},
 	};

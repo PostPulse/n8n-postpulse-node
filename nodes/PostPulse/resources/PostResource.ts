@@ -6,7 +6,7 @@ import type {
 import { NodeOperationError } from 'n8n-workflow';
 import { makeApiRequest } from '../helpers/ApiHelper';
 import { toUtcIsoInTimezone } from '../helpers/DateHelper';
-import { TIKTOK_PRIVACY_LEVEL_LABELS } from '../helpers/TikTokHelper';
+import { TIKTOK_PRIVACY_LEVEL_LABELS, fetchTikTokCreatorInfo, type TikTokCreatorInfo } from '../helpers/TikTokHelper';
 
 export async function executePostOperation(
 	this: IExecuteFunctions,
@@ -34,19 +34,43 @@ function resolveScheduledTime(this: IExecuteFunctions, itemIndex: number): strin
 	return toUtcIsoInTimezone(scheduledTimeStr, this.getTimezone(), this.getNode(), itemIndex);
 }
 
+// One creator-info lookup per TikTok account per execution: all items of a run share the same `this`
+const tiktokCreatorInfoByExecution = new WeakMap<IExecuteFunctions, Map<number, Promise<TikTokCreatorInfo | undefined>>>();
+
+function getTikTokCreatorInfo(this: IExecuteFunctions, accountId: number): Promise<TikTokCreatorInfo | undefined> {
+	let byAccount = tiktokCreatorInfoByExecution.get(this);
+	if (!byAccount) {
+		byAccount = new Map();
+		tiktokCreatorInfoByExecution.set(this, byAccount);
+	}
+	let creatorInfo = byAccount.get(accountId);
+	if (!creatorInfo) {
+		creatorInfo = fetchTikTokCreatorInfo.call(this, accountId);
+		byAccount.set(accountId, creatorInfo);
+	}
+	return creatorInfo;
+}
+
 /**
  * Builds the TikTok-specific platform settings.
  */
-function resolveTikTokSettings(this: IExecuteFunctions, itemIndex: number): IDataObject {
+async function resolveTikTokSettings(this: IExecuteFunctions, itemIndex: number, accountId: number): Promise<IDataObject> {
+	const title = this.getNodeParameter('tiktokTitle', itemIndex, '') as string;
+	if (!title.trim()) {
+		throw new NodeOperationError(this.getNode(), 'TikTok title is required', { itemIndex });
+	}
+
+	const creatorInfo = await getTikTokCreatorInfo.call(this, accountId);
+	// Same fallback as the planner-app: every level is allowed when creator info is unavailable
+	const privacyLevels = creatorInfo?.privacy_level_options ?? Object.keys(TIKTOK_PRIVACY_LEVEL_LABELS);
 	const privacyLevel = this.getNodeParameter('tiktokPrivacyLevel', itemIndex, '') as string;
-	const privacyLevels = Object.keys(TIKTOK_PRIVACY_LEVEL_LABELS);
 	if (!privacyLevels.includes(privacyLevel)) {
 		throw new NodeOperationError(
 			this.getNode(),
-			privacyLevel ? `Invalid TikTok privacy level: ${privacyLevel}` : 'TikTok privacy level is required',
+			privacyLevel ? `TikTok privacy level ${privacyLevel} is not available for this account` : 'TikTok privacy level is required',
 			{
 				itemIndex,
-				description: `Choose a Privacy Level. Supported values: ${privacyLevels.join(', ')}.`,
+				description: `Choose a Privacy Level. Available values: ${privacyLevels.join(', ')}.`,
 			},
 		);
 	}
@@ -63,11 +87,13 @@ function resolveTikTokSettings(this: IExecuteFunctions, itemIndex: number): IDat
 		});
 	}
 
+	// Interactions disabled in the account's TikTok app settings stay disabled, as in the planner-app
 	return {
+		title,
 		privacyLevel,
-		disableComments: !(this.getNodeParameter('tiktokAllowComments', itemIndex, false) as boolean),
-		disableDuet: !(this.getNodeParameter('tiktokAllowDuet', itemIndex, false) as boolean),
-		disableStitch: !(this.getNodeParameter('tiktokAllowStitch', itemIndex, false) as boolean),
+		disableComments: creatorInfo?.comment_disabled === true || !(this.getNodeParameter('tiktokAllowComments', itemIndex, false) as boolean),
+		disableDuet: creatorInfo?.duet_disabled === true || !(this.getNodeParameter('tiktokAllowDuet', itemIndex, false) as boolean),
+		disableStitch: creatorInfo?.stitch_disabled === true || !(this.getNodeParameter('tiktokAllowStitch', itemIndex, false) as boolean),
 		autoAddMusic: this.getNodeParameter('tiktokAutoAddMusic', itemIndex, false) as boolean,
 		brandOrganic,
 		brandContent,
@@ -176,9 +202,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 		const youtubeTitle = this.getNodeParameter('youtubeTitle', itemIndex) as string;
 		platformSettings.title = youtubeTitle;
 	} else if (platform === 'TIKTOK') {
-		const tiktokTitle = this.getNodeParameter('tiktokTitle', itemIndex) as string;
-		platformSettings.title = tiktokTitle;
-		Object.assign(platformSettings, resolveTikTokSettings.call(this, itemIndex));
+		Object.assign(platformSettings, await resolveTikTokSettings.call(this, itemIndex, accountId));
 	} else if (platform === 'THREADS') {
 		const threadsTopicTag = this.getNodeParameter('threadsTopicTag', itemIndex, '') as string;
 		if (threadsTopicTag && threadsTopicTag.trim() !== '') {

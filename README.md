@@ -159,16 +159,19 @@ The TikTok fields follow the same rules as the TikTok form in the PostPulse app,
 
 | Field | Default | Sent as | Notes |
 |---|---|---|---|
-| `Privacy Level` | *none (required)* | `privacyLevel` | Options are loaded from the account's TikTok creator info, so only levels the account allows are offered. There is intentionally no default. |
-| `Allow Comments` | off | `disableComments` (inverted) | |
-| `Allow Duet` | off | `disableDuet` (inverted) | Video posts only; ignored for photo posts. |
-| `Allow Stitch` | off | `disableStitch` (inverted) | Video posts only; ignored for photo posts. |
+| `Title` | — | `title` | Required. |
+| `Privacy Level` | *none (required)* | `privacyLevel` | Options are loaded from the account's TikTok creator info, so only levels the account allows are offered (all four if creator info is unavailable). There is intentionally no default. **Only me** is not offered while **Branded Content** is on. |
+| `Allow Comments` | off | `disableComments` (inverted) | Always off when comments are disabled in the account's TikTok app settings. |
+| `Allow Duet` | off | `disableDuet` (inverted) | Video posts only; ignored for photo posts. Always off when Duet is disabled in the account's TikTok app settings. |
+| `Allow Stitch` | off | `disableStitch` (inverted) | Video posts only; ignored for photo posts. Always off when Stitch is disabled in the account's TikTok app settings. |
 | `Auto Add Music` | off | `autoAddMusic` | Photo posts only; ignored for video posts. |
 | `Disclose Content` | off | — | Reveals **Your Brand** and **Branded Content**. When off, both are sent as `false`. |
 | `Your Brand` | off | `brandOrganic` | Labeled by TikTok as "Promotional content". |
-| `Branded Content` | off | `brandContent` | Labeled by TikTok as "Paid partnership". Hidden when Privacy Level is **Only me**; the node rejects that combination because branded content can't be private. |
+| `Branded Content` | off | `brandContent` | Labeled by TikTok as "Paid partnership". Disabled when Privacy Level is **Only me**; the node rejects that combination because branded content can't be private. |
 
-By posting you agree to TikTok's [Music Usage Confirmation](https://www.tiktok.com/legal/page/global/music-usage-confirmation/en) (and, for branded content, the [Branded Content Policy](https://www.tiktok.com/legal/page/global/bc-policy/en)); the node sends `hasUsageConfirmation: true`.
+The node shows TikTok's declaration "By posting, you agree to TikTok's [Music Usage Confirmation](https://www.tiktok.com/legal/page/global/music-usage-confirmation/en)" (plus the [Branded Content Policy](https://www.tiktok.com/legal/page/global/bc-policy/en) for branded content) and sends `hasUsageConfirmation: true`.
+
+At execution the node reads the account's creator info once per account per run to apply the account-level settings above.
 
 ---
 
