@@ -1,5 +1,7 @@
 import {
+	NodeApiError,
 	NodeConnectionTypes,
+	NodeOperationError,
 	type IExecuteFunctions,
 	type INodeExecutionData,
 	type INodeType,
@@ -11,12 +13,14 @@ import { executeAccountOperation } from './resources/AccountResource';
 import { executeMediaOperation } from './resources/MediaResource';
 import { executePostOperation } from './resources/PostResource';
 import { makeApiRequest } from './helpers/ApiHelper';
+import { TIKTOK_PRIVACY_LEVEL_LABELS } from './helpers/TikTokHelper';
 
 export class PostPulse implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'PostPulse',
 		name: 'postPulse',
-		icon: 'file:postpulse.svg',
+		icon: { light: 'file:postpulse.svg', dark: 'file:postpulse.dark.svg' },
+		usableAsTool: true,
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -334,7 +338,7 @@ export class PostPulse implements INodeType {
 				description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
 			},
 			{
-				displayName: '⚠️ Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
+				displayName: 'Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
 				name: 'timezoneNotice',
 				type: 'notice',
 				default: '',
@@ -503,7 +507,7 @@ export class PostPulse implements INodeType {
 				description: 'When to schedule the post. The time will be interpreted using the workflow timezone (see Workflow Settings).',
 			},
 			{
-				displayName: '⚠️ Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
+				displayName: 'Scheduled Time is interpreted using the Workflow Timezone (see Workflow Settings)',
 				name: 'timezoneNotice',
 				type: 'notice',
 				default: '',
@@ -712,6 +716,176 @@ export class PostPulse implements INodeType {
 				placeholder: 'user_uuid/uuid1.jpg, user_uuid/uuid2.mp4, user_uuid/uuid3.png',
 				description: 'Comma-separated list of media attachment paths',
 			},
+			{
+				displayName: 'Privacy Level Name or ID',
+				name: 'tiktokPrivacyLevel',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getTikTokPrivacyLevels',
+					loadOptionsDependsOn: ['socialMediaAccount'],
+				},
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Allow Comments',
+				name: 'tiktokAllowComments',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Whether other TikTok users can comment on the post',
+			},
+			{
+				displayName: 'Allow Duet',
+				name: 'tiktokAllowDuet',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Whether other TikTok users can make Duets with the post. Not applicable to photo posts.',
+			},
+			{
+				displayName: 'Allow Stitch',
+				name: 'tiktokAllowStitch',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Whether other TikTok users can make Stitches with the post. Not applicable to photo posts.',
+			},
+			{
+				displayName: 'Auto Add Music',
+				name: 'tiktokAutoAddMusic',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Whether TikTok should automatically add recommended music to the post. Applies to photo posts only.',
+			},
+			{
+				displayName: 'Disclose Content',
+				name: 'tiktokDiscloseContent',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+				},
+				description: 'Whether the post promotes goods or services in exchange for something of value. It could promote yourself, a third party, or both.',
+			},
+			{
+				displayName: 'Your Brand',
+				name: 'tiktokBrandOrganic',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
+					},
+				},
+				description: 'Whether you are promoting yourself or your own business. The post will be classified as Brand Organic.',
+			},
+			{
+				displayName: 'Branded Content',
+				name: 'tiktokBrandContent',
+				type: 'boolean',
+				default: false,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
+					},
+					hide: {
+						tiktokPrivacyLevel: ['SELF_ONLY'],
+					},
+				},
+				description: 'Whether you are promoting another brand or a third party. The post will be classified as Branded Content.',
+			},
+			{
+				displayName: "Visibility for branded content can't be private",
+				name: 'tiktokBrandedContentPrivacyNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
+						tiktokPrivacyLevel: ['SELF_ONLY'],
+					},
+				},
+			},
+			{
+				displayName: "Your photo/video will be labeled as 'Paid partnership'",
+				name: 'tiktokPaidPartnershipNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
+						tiktokBrandContent: [true],
+					},
+				},
+			},
+			{
+				displayName: "Your photo/video will be labeled as 'Promotional content'",
+				name: 'tiktokPromotionalContentNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
+						tiktokBrandOrganic: [true],
+					},
+					hide: {
+						tiktokBrandContent: [true],
+					},
+				},
+			},
 			// Optional parameters supported by Instagram and TikTok only
 			{
 				displayName: 'AI Content',
@@ -726,6 +900,37 @@ export class PostPulse implements INodeType {
 					},
 				},
 				description: 'Whether the content is generated or significantly edited with AI',
+			},
+			{
+				displayName: 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>',
+				name: 'tiktokUsageConfirmationNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+					},
+					hide: {
+						tiktokBrandContent: [true],
+					},
+				},
+			},
+			{
+				displayName: 'By posting, you agree to TikTok\'s <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank">Branded Content Policy</a> and <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank">Music Usage Confirmation</a>',
+				name: 'tiktokBrandedContentUsageConfirmationNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['TIKTOK'],
+						tiktokDiscloseContent: [true],
+						tiktokBrandContent: [true],
+					},
+				},
 			},
 		],
 	};
@@ -755,6 +960,27 @@ export class PostPulse implements INodeType {
 				return chats.map((chat: any) => ({
 					name: chat.title,
 					value: chat.id,
+				}));
+			},
+			async getTikTokPrivacyLevels(this: ILoadOptionsFunctions) {
+				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
+				const [platform, accountIdStr] = socialMediaAccount.split('|');
+				if (platform !== 'TIKTOK') {
+					return [];
+				}
+				const accountId = parseInt(accountIdStr, 10);
+
+				const creatorInfo = await makeApiRequest.call(
+					this,
+					'GET',
+					`/v1/accounts/${accountId}/tiktok/creator-info`,
+				);
+				const privacyLevels: string[] = creatorInfo?.data?.privacy_level_options?.length
+					? creatorInfo.data.privacy_level_options
+					: Object.keys(TIKTOK_PRIVACY_LEVEL_LABELS);
+				return privacyLevels.map((level) => ({
+					name: TIKTOK_PRIVACY_LEVEL_LABELS[level] ?? level,
+					value: level,
 				}));
 			},
 		},
@@ -794,7 +1020,10 @@ export class PostPulse implements INodeType {
 					returnData.push(...executionErrorData);
 					continue;
 				}
-				throw error;
+				// Keep NodeApiError as-is so its HTTP status code reaches the n8n UI
+				throw error instanceof NodeApiError
+					? error
+					: new NodeOperationError(this.getNode(), error as Error, { itemIndex: i });
 			}
 		}
 

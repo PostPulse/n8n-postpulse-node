@@ -6,6 +6,7 @@ import type {
 import { NodeOperationError } from 'n8n-workflow';
 import { makeApiRequest } from '../helpers/ApiHelper';
 import { toUtcIsoInTimezone } from '../helpers/DateHelper';
+import { TIKTOK_PRIVACY_LEVEL_LABELS } from '../helpers/TikTokHelper';
 
 export async function executePostOperation(
 	this: IExecuteFunctions,
@@ -31,6 +32,47 @@ function resolveScheduledTime(this: IExecuteFunctions, itemIndex: number): strin
 	const scheduledTimeStr = this.getNodeParameter('scheduledTime', itemIndex) as string | Date;
 
 	return toUtcIsoInTimezone(scheduledTimeStr, this.getTimezone(), this.getNode(), itemIndex);
+}
+
+/**
+ * Builds the TikTok-specific platform settings.
+ */
+function resolveTikTokSettings(this: IExecuteFunctions, itemIndex: number): IDataObject {
+	const privacyLevel = this.getNodeParameter('tiktokPrivacyLevel', itemIndex, '') as string;
+	const privacyLevels = Object.keys(TIKTOK_PRIVACY_LEVEL_LABELS);
+	if (!privacyLevels.includes(privacyLevel)) {
+		throw new NodeOperationError(
+			this.getNode(),
+			privacyLevel ? `Invalid TikTok privacy level: ${privacyLevel}` : 'TikTok privacy level is required',
+			{
+				itemIndex,
+				description: `Choose a Privacy Level. Supported values: ${privacyLevels.join(', ')}.`,
+			},
+		);
+	}
+
+	// Turning Disclose Content off clears both commercial content flags
+	const discloseContent = this.getNodeParameter('tiktokDiscloseContent', itemIndex, false) as boolean;
+	const brandOrganic = discloseContent && (this.getNodeParameter('tiktokBrandOrganic', itemIndex, false) as boolean);
+	const brandContent = discloseContent && (this.getNodeParameter('tiktokBrandContent', itemIndex, false) as boolean);
+	// TikTok Content Sharing Guidelines: branded content "can only be configured with visibility as public/friends"
+	if (brandContent && privacyLevel === 'SELF_ONLY') {
+		throw new NodeOperationError(this.getNode(), "Visibility for branded content can't be private", {
+			itemIndex,
+			description: 'Choose another Privacy Level or turn off Branded Content.',
+		});
+	}
+
+	return {
+		privacyLevel,
+		disableComments: !(this.getNodeParameter('tiktokAllowComments', itemIndex, false) as boolean),
+		disableDuet: !(this.getNodeParameter('tiktokAllowDuet', itemIndex, false) as boolean),
+		disableStitch: !(this.getNodeParameter('tiktokAllowStitch', itemIndex, false) as boolean),
+		autoAddMusic: this.getNodeParameter('tiktokAutoAddMusic', itemIndex, false) as boolean,
+		brandOrganic,
+		brandContent,
+		hasUsageConfirmation: true,
+	};
 }
 
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
@@ -136,7 +178,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	} else if (platform === 'TIKTOK') {
 		const tiktokTitle = this.getNodeParameter('tiktokTitle', itemIndex) as string;
 		platformSettings.title = tiktokTitle;
-		platformSettings.hasUsageConfirmation = true;
+		Object.assign(platformSettings, resolveTikTokSettings.call(this, itemIndex));
 	} else if (platform === 'THREADS') {
 		const threadsTopicTag = this.getNodeParameter('threadsTopicTag', itemIndex, '') as string;
 		if (threadsTopicTag && threadsTopicTag.trim() !== '') {

@@ -14,7 +14,7 @@ export class PostPulseOAuth2Api implements ICredentialType {
 
 	documentationUrl = 'https://developers.post-pulse.com';
 
-	icon: Icon = 'file:postpulse.svg';
+	icon: Icon = { light: 'file:postpulse.svg', dark: 'file:postpulse.dark.svg' };
 
 	properties: INodeProperties[] = [
 		{

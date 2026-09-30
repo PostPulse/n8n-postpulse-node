@@ -75,6 +75,7 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
    - Facebook and Telegram accounts: select Page/Channel from dropdowns (loaded automatically)
    - Enter content and comma-separated attachment paths
+   - TikTok accounts: pick a **Privacy Level** (required, loaded from the account's TikTok creator info) and set the interaction, music and commercial-content options (see below)
    - Instagram and TikTok accounts: optionally turn on the **AI Content** toggle (off by default) to label the post as AI-generated
 
 ### Using Schedule - Advanced workflows
@@ -142,7 +143,7 @@ For multi-account posting or complex scenarios:
     - **Instagram**: Publication Type (Feed/Reels/Story)
     - **Facebook**: Publication Type (Feed/Reels/Story) + Page dropdown
     - **YouTube**: Video Title
-    - **TikTok**: Title
+    - **TikTok**: Title, Privacy Level, Allow Comments/Duet/Stitch, Auto Add Music, Disclose Content (Your Brand / Branded Content) — see [TikTok settings in Schedule (Light)](#tiktok-settings-in-schedule-light)
     - **Threads**: Topic Tag (optional)
     - **Telegram**: Channel dropdown
     - **X/Twitter, BlueSky, LinkedIn**: No additional fields
@@ -151,6 +152,23 @@ For multi-account posting or complex scenarios:
   - `AI Content` — *(Instagram and TikTok only)* Toggle, **off by default**. Turn on when the content is generated or significantly edited with AI; the node sends it as `aiContent` in `platformSettings`.
 - **Output:** Same as Schedule operation
 - **Use Case:** Perfect for simple workflows and testing; for complex multi-account or multi-post scenarios, use Schedule operation
+
+#### TikTok settings in Schedule (Light)
+
+The TikTok fields follow the same rules as the TikTok form in the PostPulse app, which in turn follows TikTok's Content Sharing Guidelines:
+
+| Field | Default | Sent as | Notes |
+|---|---|---|---|
+| `Privacy Level` | *none (required)* | `privacyLevel` | Options are loaded from the account's TikTok creator info, so only levels the account allows are offered. There is intentionally no default. |
+| `Allow Comments` | off | `disableComments` (inverted) | |
+| `Allow Duet` | off | `disableDuet` (inverted) | Video posts only; ignored for photo posts. |
+| `Allow Stitch` | off | `disableStitch` (inverted) | Video posts only; ignored for photo posts. |
+| `Auto Add Music` | off | `autoAddMusic` | Photo posts only; ignored for video posts. |
+| `Disclose Content` | off | — | Reveals **Your Brand** and **Branded Content**. When off, both are sent as `false`. |
+| `Your Brand` | off | `brandOrganic` | Labeled by TikTok as "Promotional content". |
+| `Branded Content` | off | `brandContent` | Labeled by TikTok as "Paid partnership". Hidden when Privacy Level is **Only me**; the node rejects that combination because branded content can't be private. |
+
+By posting you agree to TikTok's [Music Usage Confirmation](https://www.tiktok.com/legal/page/global/music-usage-confirmation/en) (and, for branded content, the [Branded Content Policy](https://www.tiktok.com/legal/page/global/bc-policy/en)); the node sends `hasUsageConfirmation: true`.
 
 ---
 
@@ -243,6 +261,7 @@ Supported shapes:
   "disableStitch": false,
   "brandContent": false,
   "brandOrganic": true,
+  "autoAddMusic": false,        // photo posts only
   "hasUsageConfirmation": true,
   "aiContent": false            // optional, default false — mark the post as AI-generated
 }
