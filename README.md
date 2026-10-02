@@ -3,8 +3,8 @@
 > **Official n8n integration for [PostPulse](https://post-pulse.com)** — schedule and publish content to multiple social networks from your n8n workflows.
 
 - **Auth:** OAuth2 (auto refresh) 
-- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages lookup)  
-- **Targets today:** Facebook, Instagram, TikTok, YouTube, Threads, LinkedIn, Telegram, X, Bluesky  
+- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages / Pinterest Boards lookup)  
+- **Targets today:** Facebook, Instagram, TikTok, YouTube, Threads, LinkedIn, Pinterest, Telegram, X, Bluesky  
 - **Use cases:** One-click multi-destination posting, media pipeline, automated campaigns
 
 ---
@@ -73,7 +73,7 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - Choose **Schedule Mode**: "Post Now" (immediate) or "Schedule for Later" (pick a time)
    - Select your connected account from the dropdown (accounts loaded automatically)
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
-   - Facebook and Telegram accounts: select Page/Channel from dropdowns (loaded automatically)
+   - Facebook, Telegram and Pinterest accounts: select Page/Channel/Board from dropdowns (loaded automatically)
    - Enter content and comma-separated attachment paths
    - TikTok accounts: pick a **Privacy Level** (required, loaded from the account's TikTok creator info) and set the interaction, music and commercial-content options (see below)
    - Instagram and TikTok accounts: optionally turn on the **AI Content** toggle (off by default) to label the post as AI-generated
@@ -84,7 +84,7 @@ For multi-account posting or complex scenarios:
 
 1. **Accounts → Get Many**  
    Retrieve your connected accounts. Save the `id` of targets you'll post to.
-2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook manually)*  
+2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook/Pinterest manually)*  
    Input: Account ID and platform. Output contains chat/page IDs.
 3. **Media → Upload** *(same as above)*
 4. **Posts → Schedule**  
@@ -101,9 +101,9 @@ For multi-account posting or complex scenarios:
 - **Output:** Array of accounts: `{ id, platform, handle, ... }`
 - **Use:** Pick `id` for each destination.
 
-### Telegram: **Get Connected Chats**
-- **Input:** `{ id }` (must be a Telegram account)
-- **Output:** Array: `{ id, title }` — pass `chatId` into Telegram posts.
+### Accounts: **Get Connected Chats**
+- **Input:** Account ID and platform (Telegram, Facebook or Pinterest account)
+- **Output:** Array: `{ id, title }` — Telegram channels, Facebook Pages or Pinterest boards. Pass `id` as `chatId` into posts.
 
 ### Media: **Upload**
 - **Input:** File or Public URL
@@ -133,7 +133,7 @@ For multi-account posting or complex scenarios:
 - **Key Features:**
   - **Platform-specific dynamic fields** — The UI automatically shows relevant fields based on the selected account's platform
   - **Automatic platform settings** — No need to manually construct JSON; the node builds `platformSettings` automatically
-  - **Smart chat selection** — Facebook Pages and Telegram Channels appear as dropdowns (loaded from API)
+  - **Smart chat selection** — Facebook Pages, Telegram Channels and Pinterest Boards appear as dropdowns (loaded from API)
   - **Simple attachment paths** — Enter comma-separated media paths instead of managing collections
 - **Input Fields:**
   - `Schedule Mode` — "Post Now" (publishes immediately) or "Schedule for Later" (pick a time)
@@ -145,6 +145,7 @@ For multi-account posting or complex scenarios:
     - **YouTube**: Video Title
     - **TikTok**: Title, Privacy Level, Allow Comments/Duet/Stitch, Auto Add Music, Disclose Content (Your Brand / Branded Content) — see [TikTok settings in Schedule (Light)](#tiktok-settings-in-schedule-light)
     - **Threads**: Topic Tag (optional)
+    - **Pinterest**: Board dropdown, Pin Title, Destination Link, Alt Text, Board Section ID (all optional)
     - **Telegram**: Channel dropdown
     - **X/Twitter, BlueSky, LinkedIn**: No additional fields
   - `Content` — Post text/caption (multi-line)
@@ -209,12 +210,12 @@ Represents “one publication in user’s mind” that may map to *one or many* 
     "6354d8d2-e0f1-702b-af6c-62e28e377ec7/c6c2b826-8aca-4eae-8549-515325012ab4.jpeg"
   ],
   "content": "Your caption or description",
-  "chatId": "1234567890"   // Telegram only
+  "chatId": "1234567890"   // Telegram channel, Facebook Page or Pinterest board
   /* "thumbnailPath": "..." — coming soon */
 }
 ```
 
-> **Note:** For YouTube/TikTok, `content` is used as **description** (titles are set in `platformSettings`).
+> **Note:** For YouTube/TikTok/Pinterest, `content` is used as **description** (titles are set in `platformSettings`).
 
 ---
 
@@ -271,6 +272,19 @@ Supported shapes:
 ```
 
 > **AI Content:** `aiContent` is supported by Instagram and TikTok only. In **Schedule (Light)** it appears as the **AI Content** toggle for those platforms (off by default); in **Schedule** set it directly in `platformSettings`.
+
+### Pinterest
+```json
+{
+  "type": "PINTEREST",
+  "title": "My Pin title",                 // optional, up to 100 characters
+  "link": "https://example.com/product",   // optional, opened when the Pin is clicked
+  "altText": "Describe the image",         // optional
+  "boardSectionId": "1234567890"           // optional, section within the board
+}
+```
+
+> The board is required and is set as the post's `chatId` (get board IDs from **Accounts → Get Connected Chats** with platform `PINTEREST`). A Pin needs media: 1 image, 1 video, or a carousel of 2–5 images.
 
 ### YouTube
 ```json
@@ -337,6 +351,12 @@ PostPulse Web enforces rich, platform-specific validations.
 | Instagram: Video should have no more than 1920 horizontal pixels | **To Do** | **You must validate** |
 | Bluesky: Users can post up to 300 characters | Enforced | **You must validate** |
 | Bluesky: Post may contain up to 4 images | Enforced | **You must validate** |
+| Pinterest: A board must be selected (`chatId`) | Enforced | Enforced |
+| Pinterest: Description (`content`) should be less than or equal 800 characters | Enforced | Enforced |
+| Pinterest: Title should be less than or equal 100 characters | Enforced | Enforced |
+| Pinterest: One Pin is either 1 image, 1 video, or a carousel of 2–5 images | Enforced | Enforced |
+| Pinterest: Supported formats are JPG, PNG, WEBP, MP4 and MOV | Enforced | Enforced |
+| Pinterest: Image size should be less than or equal 20MB, video 2GB | Enforced | Enforced |
 | Telegram: Users can post up to 4096 characters | Enforced | **You must validate** |
 | Telegram: Standard user can post up to 1024 characters if post contains media as well | Enforced | **You must validate** |
 | Telegram: One post may contain up to 10 media | Enforced | **You must validate** |

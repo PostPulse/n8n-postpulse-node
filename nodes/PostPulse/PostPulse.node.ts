@@ -441,7 +441,7 @@ export class PostPulse implements INodeType {
 												name: 'chatId',
 												type: 'string',
 												default: '',
-												description: 'Chat ID for Telegram and Facebook posts',
+												description: 'Telegram channel, Facebook Page or Pinterest board ID',
 											},
 											{
 												displayName: 'Content',
@@ -650,6 +650,81 @@ export class PostPulse implements INodeType {
 					},
 				},
 				description: 'Optional topic tag for Threads post',
+			},
+			// Dynamic fields for Pinterest
+			{
+				displayName: 'Board Name or ID',
+				name: 'pinterestBoard',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getConnectedChats',
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['PINTEREST'],
+					},
+				},
+				description: 'Board to save the Pin to. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			},
+			{
+				displayName: 'Pin Title',
+				name: 'pinterestTitle',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['PINTEREST'],
+					},
+				},
+				description: 'Optional title for the Pin, up to 100 characters. Content is used as the Pin description.',
+			},
+			{
+				displayName: 'Destination Link',
+				name: 'pinterestLink',
+				type: 'string',
+				default: '',
+				placeholder: 'https://example.com/product',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['PINTEREST'],
+					},
+				},
+				description: 'Optional URL opened when someone clicks the Pin',
+			},
+			{
+				displayName: 'Alt Text',
+				name: 'pinterestAltText',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['PINTEREST'],
+					},
+				},
+				description: 'Optional description of the image for people using screen readers',
+			},
+			{
+				displayName: 'Board Section ID',
+				name: 'pinterestBoardSectionId',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['PINTEREST'],
+					},
+				},
+				description: 'Optional ID of a section within the board to save the Pin to',
 			},
 			// Dynamic dropdowns for Facebook Pages and Telegram Channels
 			{

@@ -101,6 +101,26 @@ async function resolveTikTokSettings(this: IExecuteFunctions, itemIndex: number,
 	};
 }
 
+/**
+ * Builds the Pinterest-specific platform settings. The board is sent as the post's chatId.
+ */
+function resolvePinterestSettings(this: IExecuteFunctions, itemIndex: number): IDataObject {
+	const settings: IDataObject = {};
+	const optionalFields: Array<[string, string]> = [
+		['title', 'pinterestTitle'],
+		['link', 'pinterestLink'],
+		['altText', 'pinterestAltText'],
+		['boardSectionId', 'pinterestBoardSectionId'],
+	];
+	for (const [settingName, parameterName] of optionalFields) {
+		const value = String(this.getNodeParameter(parameterName, itemIndex, '') ?? '').trim();
+		if (value) {
+			settings[settingName] = value;
+		}
+	}
+	return settings;
+}
+
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
 	const scheduleMode = this.getNodeParameter('scheduleMode', itemIndex, 'scheduled') as string;
 
@@ -170,12 +190,14 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	const [platform, accountIdStr] = socialMediaAccountValue.split('|');
 	const accountId = parseInt(accountIdStr, 10);
 
-	// Get chatId from Facebook Page or Telegram Channel if applicable
+	// Get chatId from Facebook Page, Telegram Channel or Pinterest board if applicable
 	let chatId = '';
 	if (platform === 'FACEBOOK') {
 		chatId = this.getNodeParameter('facebookPage', itemIndex, '') as string;
 	} else if (platform === 'TELEGRAM') {
 		chatId = this.getNodeParameter('telegramChannel', itemIndex, '') as string;
+	} else if (platform === 'PINTEREST') {
+		chatId = this.getNodeParameter('pinterestBoard', itemIndex, '') as string;
 	}
 
 	// Build platform settings based on the platform
@@ -208,6 +230,8 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 		if (threadsTopicTag && threadsTopicTag.trim() !== '') {
 			platformSettings.topicTag = threadsTopicTag;
 		}
+	} else if (platform === 'PINTEREST') {
+		Object.assign(platformSettings, resolvePinterestSettings.call(this, itemIndex));
 	}
 	// For X_TWITTER, BLUE_SKY, TELEGRAM, LINKEDIN - just send the type
 
