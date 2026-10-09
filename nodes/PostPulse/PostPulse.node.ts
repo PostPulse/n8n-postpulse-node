@@ -601,7 +601,7 @@ export class PostPulse implements INodeType {
 					show: {
 						resource: ['post'],
 						operation: ['scheduleLight'],
-						platform: ['FACEBOOK'],
+						platform: ['FACEBOOK', 'FACEBOOK_PAGE'],
 					},
 				},
 				description: 'Type of Facebook publication',

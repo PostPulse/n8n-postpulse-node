@@ -217,7 +217,8 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	if (platform === 'INSTAGRAM') {
 		const publicationType = this.getNodeParameter('publicationType', itemIndex, 'FEED') as string;
 		platformSettings.publicationType = publicationType;
-	} else if (platform === 'FACEBOOK') {
+	} else if (platform === 'FACEBOOK' || platform === 'FACEBOOK_PAGE') {
+		// A Facebook Page account is the Page itself: same publication types, no Page to pick
 		const facebookPublicationType = this.getNodeParameter('facebookPublicationType', itemIndex, 'FEED') as string;
 		platformSettings.publicationType = facebookPublicationType;
 	} else if (platform === 'YOUTUBE') {

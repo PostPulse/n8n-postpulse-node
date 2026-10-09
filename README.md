@@ -73,7 +73,7 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - Choose **Schedule Mode**: "Post Now" (immediate) or "Schedule for Later" (pick a time)
    - Select your connected account from the dropdown (accounts loaded automatically)
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
-   - Facebook, Telegram and Pinterest accounts: select Page/Channel/Board from dropdowns (loaded automatically)
+   - Facebook, Telegram and Pinterest accounts: select Page/Channel/Board from dropdowns (loaded automatically). A Facebook Page account is the Page itself, so it has no Page dropdown
    - Enter content and comma-separated attachment paths
    - TikTok accounts: pick a **Privacy Level** (required, loaded from the account's TikTok creator info) and set the interaction, music and commercial-content options (see below)
    - Instagram and TikTok accounts: optionally turn on the **AI Content** toggle (off by default) to label the post as AI-generated
@@ -142,6 +142,7 @@ For multi-account posting or complex scenarios:
   - *Dynamic fields based on platform:*
     - **Instagram**: Publication Type (Feed/Reels/Story)
     - **Facebook**: Publication Type (Feed/Reels/Story) + Page dropdown
+    - **Facebook Page** (an account that is one Page): Publication Type (Feed/Reels/Story); no Page dropdown, the account is the Page
     - **YouTube**: Video Title
     - **TikTok**: Title, Privacy Level, Allow Comments/Duet/Stitch, Auto Add Music, Disclose Content (Your Brand / Branded Content) — see [TikTok settings in Schedule (Light)](#tiktok-settings-in-schedule-light)
     - **Threads**: Topic Tag (optional)
