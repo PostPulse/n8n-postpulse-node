@@ -21,10 +21,6 @@ export async function executeAccountOperation(
 
 async function getConnectedChats(this: IExecuteFunctions, itemIndex: number): Promise<any> {
 	const accountId = this.getNodeParameter('accountId', itemIndex) as number;
-	const platform = this.getNodeParameter('platform', itemIndex) as string;
 
-	const endpoint = `/v1/accounts/${accountId}/chats`;
-	const queryParams = { platform };
-
-	return await makeApiRequest.call(this, 'GET', endpoint, undefined, queryParams);
+	return await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/chats`);
 }
