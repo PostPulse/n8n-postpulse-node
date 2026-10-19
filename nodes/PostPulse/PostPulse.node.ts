@@ -79,7 +79,7 @@ export class PostPulse implements INodeType {
 					{
 						name: 'Get Connected Chats',
 						value: 'getConnectedChats',
-						description: 'Get connected chats for an account by platform',
+						description: 'Get connected chats for an account',
 						action: 'Get connected chats',
 					},
 				],
@@ -99,20 +99,6 @@ export class PostPulse implements INodeType {
 					},
 				},
 				description: 'ID of the account to get connected chats for',
-			},
-			{
-				displayName: 'Platform',
-				name: 'platform',
-				type: 'string',
-				required: true,
-				default: '',
-				displayOptions: {
-					show: {
-						resource: ['account'],
-						operation: ['getConnectedChats'],
-					},
-				},
-				description: 'Platform to get connected chats for. Use the platform value from the Get Many accounts operation.',
 			},
 			// Media Operations
 			{
@@ -1038,16 +1024,9 @@ export class PostPulse implements INodeType {
 			},
 			async getConnectedChats(this: ILoadOptionsFunctions) {
 				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
-				const [platform, accountIdStr] = socialMediaAccount.split('|');
-				const accountId = parseInt(accountIdStr, 10);
+				const accountId = parseInt(socialMediaAccount.split('|')[1], 10);
 
-				const chats = await makeApiRequest.call(
-					this,
-					'GET',
-					`/v1/accounts/${accountId}/chats`,
-					undefined,
-					{ platform },
-				);
+				const chats = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/chats`);
 				return chats.map((chat: any) => ({
 					name: chat.title,
 					value: chat.id,

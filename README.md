@@ -85,7 +85,7 @@ For multi-account posting or complex scenarios:
 1. **Accounts → Get Many**  
    Retrieve your connected accounts. Save the `id` of targets you'll post to.
 2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook/Pinterest manually)*  
-   Input: Account ID and platform. Output contains chat/page IDs.
+   Input: Account ID. Output contains chat/page IDs.
 3. **Media → Upload** *(same as above)*
 4. **Posts → Schedule**  
    Build one `PostSchedule` with one or more `Publication`s.  
@@ -102,7 +102,7 @@ For multi-account posting or complex scenarios:
 - **Use:** Pick `id` for each destination.
 
 ### Accounts: **Get Connected Chats**
-- **Input:** Account ID and platform (Telegram, Facebook or Pinterest account)
+- **Input:** Account ID (a Telegram, Facebook or Pinterest account)
 - **Output:** Array: `{ id, title }` — Telegram channels, Facebook Pages or Pinterest boards. Pass `id` as `chatId` into posts.
 
 ### Media: **Upload**
@@ -285,7 +285,7 @@ Supported shapes:
 }
 ```
 
-> The board is required and is set as the post's `chatId` (get board IDs from **Accounts → Get Connected Chats** with platform `PINTEREST`). A Pin needs media: 1 image, 1 video, or a carousel of 2–5 images.
+> The board is required and is set as the post's `chatId` (get board IDs from **Accounts → Get Connected Chats** with the Pinterest account's ID). A Pin needs media: 1 image, 1 video, or a carousel of 2–5 images.
 
 ### YouTube
 ```json
