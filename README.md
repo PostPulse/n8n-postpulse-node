@@ -358,11 +358,11 @@ PostPulse Web enforces rich, platform-specific validations.
 | Pinterest: One Pin is either 1 image, 1 video, or a carousel of 2–5 images | Enforced | Enforced |
 | Pinterest: Supported formats are JPG, PNG, WEBP, MP4 and MOV | Enforced | Enforced |
 | Pinterest: Image size should be less than or equal 20MB, video 2GB | Enforced | Enforced |
-| Telegram: Users can post up to 4096 characters | Enforced | **You must validate** |
-| Telegram: Standard user can post up to 1024 characters if post contains media as well | Enforced | **You must validate** |
-| Telegram: One post may contain up to 10 media | Enforced | **You must validate** |
-| Telegram: Supported image formats are JPG, PNG, and WEBP | Enforced | **You must validate** |
-| Telegram: Supported video formats is MP4 | Enforced | **You must validate** |
+| Telegram: Users can post up to 4096 characters | Enforced | Enforced |
+| Telegram: Standard user can post up to 1024 characters if post contains media as well | Enforced | Enforced |
+| Telegram: One post may contain up to 10 media | Enforced | Enforced |
+| Telegram: Supported image formats are JPG, PNG, and WEBP | Enforced | Enforced |
+| Telegram: Supported video formats is MP4 | Enforced | Enforced |
 | Telegram: Image size should be less than or equal 10MB | Enforced | Enforced |
 | Telegram: Video size should be less than or equal 49MB | Enforced | Enforced |
 | Telegram: Album videos over 20MB and images over 5MB together should be less than or equal 49MB | Not checked | Enforced |
