@@ -363,6 +363,9 @@ PostPulse Web enforces rich, platform-specific validations.
 | Telegram: One post may contain up to 10 media | Enforced | **You must validate** |
 | Telegram: Supported image formats are JPG, PNG, and WEBP | Enforced | **You must validate** |
 | Telegram: Supported video formats is MP4 | Enforced | **You must validate** |
+| Telegram: Image size should be less than or equal 10MB | Enforced | Enforced |
+| Telegram: Video size should be less than or equal 49MB | Enforced | Enforced |
+| Telegram: Album videos over 20MB and images over 5MB together should be less than or equal 49MB | Not checked | Enforced |
 
 > Follow updates at **https://post-pulse.com/releases** — we’ll announce when API-side validations roll out.
 
