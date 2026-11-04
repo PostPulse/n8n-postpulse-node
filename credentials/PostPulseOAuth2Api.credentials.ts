@@ -12,7 +12,7 @@ export class PostPulseOAuth2Api implements ICredentialType {
 
 	displayName = 'PostPulse OAuth2 API';
 
-	documentationUrl = 'https://developers.post-pulse.com';
+	documentationUrl = 'https://post-pulse.com/n8n-integration';
 
 	icon: Icon = { light: 'file:postpulse.svg', dark: 'file:postpulse.dark.svg' };
 
