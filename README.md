@@ -32,7 +32,7 @@
 
 1. **Sign up** at https://post-pulse.com/login  
 2. **Connect your social accounts** in the web app: https://post-pulse.com/app/accounts  
-3. **Create OAuth client**: Visit https://developers.post-pulse.com and sign in using the email associated with your PostPulse account. Create a new OAuth client to obtain `client_id` and `client_secret`.
+3. **Create OAuth client**: Open the [Developer Portal](https://post-pulse.com/app/portal/apps) in the PostPulse app (sign in with your PostPulse account). Create a new OAuth client to obtain `client_id` and `client_secret`.
 4. (Telegram only) Add the official **PostPulse bot** to your channels you plan to post to.
 
 > Use the same email in n8n OAuth as your PostPulse account email.
@@ -52,8 +52,8 @@
 
 Create **Credentials → PostPulse OAuth2 API** in n8n:
 
-- **OAuth Redirect URL:** Use this URL when creating your OAuth client at https://developers.post-pulse.com
-- **Client ID / Secret:** Obtained from the developer portal at https://developers.post-pulse.com
+- **OAuth Redirect URL:** Use this URL when creating your OAuth client at https://post-pulse.com/app/portal/apps
+- **Client ID / Secret:** Obtained from the Developer Portal at https://post-pulse.com/app/portal/apps
 
 This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.  
 
@@ -389,7 +389,7 @@ PostPulse supports webhooks for real-time notifications instead of polling for s
 
 ### Setting up webhooks
 
-1. **Register webhook endpoints** at the [Developer Portal](https://developers.post-pulse.com)
+1. **Register webhook endpoints** at the [Developer Portal](https://post-pulse.com/app/portal/webhooks)
 2. **Configure event types** you want to receive notifications for
 3. **Review webhook models** and event types in the developer documentation
 
@@ -400,7 +400,7 @@ PostPulse supports webhooks for real-time notifications instead of polling for s
 - **Better reliability** — Guaranteed delivery with retry mechanisms
 - **Lower latency** — Immediate response to status changes
 
-> **Learn more:** Visit [https://developers.post-pulse.com](https://developers.post-pulse.com) for complete webhook documentation, supported event types, and payload schemas.
+> **Learn more:** Visit [https://post-pulse.com/webhooks](https://post-pulse.com/webhooks) for complete webhook documentation, supported event types, and payload schemas.
 
 ---
 
@@ -626,13 +626,14 @@ The workflow timezone (n8n → Workflow Settings → Timezone). A naive value li
 PostPulse validates the real media format after upload. If the bytes don't match the extension (e.g. a `.mov` renamed to `.mp4`), the stored file is renamed to the correct extension. Always pass the `path` returned by Media → Upload into `attachmentPaths`.
 
 **Should I use webhooks or polling for status updates?**  
-Webhooks are recommended for production workflows as they provide real-time notifications without the need to repeatedly call status endpoints. Set up webhooks at [https://developers.post-pulse.com](https://developers.post-pulse.com) to receive instant notifications for post publishing status and media import progress. Use polling (Get Upload Status) only for testing or when webhooks aren't feasible.
+Webhooks are recommended for production workflows as they provide real-time notifications without the need to repeatedly call status endpoints. Set up webhooks at [https://post-pulse.com/app/portal/webhooks](https://post-pulse.com/app/portal/webhooks) to receive instant notifications for post publishing status and media import progress. Use polling (Get Upload Status) only for testing or when webhooks aren't feasible.
 
 ---
 
 ## Support
 
-- **Developer Portal:** https://developers.post-pulse.com (for OAuth client setup and documentation)
+- **Developer Portal:** https://post-pulse.com/app/portal/apps (for OAuth client setup)
+- **Documentation:** https://post-pulse.com/n8n-integration
 - **Discord Community:** [PostPulse for Developers](https://discord.gg/yrMdD4R5) (feature requests, community support)
 - **Email Support:** support@post-pulse.com (technical issues and general inquiries)
 
