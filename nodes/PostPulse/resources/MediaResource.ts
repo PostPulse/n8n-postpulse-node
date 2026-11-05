@@ -187,7 +187,8 @@ async function uploadFromUrl(this: IExecuteFunctions, itemIndex: number): Promis
 			};
 		}
 
-		if (statusResponse.state === 'FAILED_TEMPORARY' || statusResponse.state === 'FAILED_PERMANENT') {
+		// FAILED_TEMPORARY is retried by the backend until READY or FAILED_PERMANENT, so keep polling
+		if (statusResponse.state === 'FAILED_PERMANENT') {
 			const errorDetail = statusResponse.errorMessage || statusResponse.errorCode || 'Unknown error';
 			throw new NodeOperationError(
 				this.getNode(),
