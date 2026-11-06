@@ -775,7 +775,7 @@ export class PostPulse implements INodeType {
 					},
 				},
 				placeholder: 'user_uuid/uuid1.jpg, user_uuid/uuid2.mp4, user_uuid/uuid3.png',
-				description: 'Comma-separated list of media attachment paths',
+				description: 'Comma-separated list of media attachment paths. With Publication Type Story, each path becomes its own story, in the order given, within one post.',
 			},
 			{
 				displayName: 'Privacy Level Name or ID',

@@ -246,6 +246,8 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	if (content) postData.content = content;
 	if (chatId) postData.chatId = chatId;
 
+	let posts: IDataObject[] = [postData];
+
 	// Handle attachment paths - parse comma-separated string
 	if (attachmentPathsString && attachmentPathsString.trim() !== '') {
 		const attachmentPaths = attachmentPathsString
@@ -254,14 +256,18 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 			.filter((path: string) => path !== '');
 
 		if (attachmentPaths.length > 0) {
-			postData.attachmentPaths = attachmentPaths;
+			// The API takes one media per story, and a publication holds any number of stories: same split as
+			// the website. publicationType is set above only for the platforms that have it, so nothing else splits.
+			posts = platformSettings.publicationType === 'STORY'
+				? attachmentPaths.map((path: string) => ({ ...postData, attachmentPaths: [path] }))
+				: [{ ...postData, attachmentPaths }];
 		}
 	}
 
 	// Build the publication
 	const publication: IDataObject = {
 		socialMediaAccountId: accountId,
-		posts: [postData],
+		posts,
 		platformSettings,
 	};
 

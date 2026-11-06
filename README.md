@@ -150,7 +150,7 @@ For multi-account posting or complex scenarios:
     - **Telegram**: Channel dropdown
     - **X/Twitter, BlueSky, LinkedIn**: No additional fields
   - `Content` — Post text/caption (multi-line)
-  - `Attachment Paths` — Comma-separated media paths from Media → Upload
+  - `Attachment Paths` — Comma-separated media paths from Media → Upload. With Publication Type Story, each path becomes its own story, in the order given, within one post
   - `AI Content` — *(Instagram and TikTok only)* Toggle, **off by default**. Turn on when the content is generated or significantly edited with AI; the node sends it as `aiContent` in `platformSettings`.
 - **Output:** Same as Schedule operation
 - **Use Case:** Perfect for simple workflows and testing; for complex multi-account or multi-post scenarios, use Schedule operation
@@ -202,7 +202,7 @@ Represents “one publication in user’s mind” that may map to *one or many* 
 - **One publication → multiple posts** is useful when:
   - Telegram account posts to several **channels** (one post per channel)
   - Telegram account posts with large text or more than 10 media (one post per message that will be published)
-  - Instagram **storyline** (multiple stories in one conceptual set)
+  - Instagram or Facebook **storyline** (multiple stories in one conceptual set, one post per story). Schedule (Light) builds these posts from its comma-separated paths
 
 ### `Post`
 ```json
