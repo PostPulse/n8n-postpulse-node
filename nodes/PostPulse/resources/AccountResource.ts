@@ -14,6 +14,8 @@ export async function executeAccountOperation(
 		return await makeApiRequest.call(this, 'GET', '/v1/accounts');
 	} else if (operation === 'getConnectedChats') {
 		return await getConnectedChats.call(this, itemIndex);
+	} else if (operation === 'getWhatsAppDelivery') {
+		return await getWhatsAppDelivery.call(this, itemIndex);
 	}
 	
 	throw new NodeOperationError(this.getNode(), `Unknown account operation: ${operation}`, { itemIndex });
@@ -23,4 +25,11 @@ async function getConnectedChats(this: IExecuteFunctions, itemIndex: number): Pr
 	const accountId = this.getNodeParameter('accountId', itemIndex) as number;
 
 	return await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/chats`);
+}
+
+async function getWhatsAppDelivery(this: IExecuteFunctions, itemIndex: number): Promise<any> {
+	const accountId = this.getNodeParameter('accountId', itemIndex) as number;
+	const postId = this.getNodeParameter('postId', itemIndex) as number;
+
+	return await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/whatsapp/posts/${postId}/delivery`);
 }

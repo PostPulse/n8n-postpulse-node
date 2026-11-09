@@ -3,8 +3,8 @@
 > **Official n8n integration for [PostPulse](https://post-pulse.com)** — schedule and publish content to multiple social networks from your n8n workflows.
 
 - **Auth:** OAuth2 (auto refresh) 
-- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages / Pinterest Boards lookup)  
-- **Targets today:** Facebook, Instagram, TikTok, YouTube, Threads, LinkedIn, Pinterest, Telegram, X, Bluesky  
+- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages / Pinterest Boards / WhatsApp numbers lookup)  
+- **Targets today:** Facebook, Instagram, TikTok, YouTube, Threads, LinkedIn, Pinterest, Telegram, X, Bluesky, WhatsApp (template broadcasts)  
 - **Use cases:** One-click multi-destination posting, media pipeline, automated campaigns
 
 ---
@@ -34,6 +34,7 @@
 2. **Connect your social accounts** in the web app: https://post-pulse.com/app/accounts  
 3. **Create OAuth client**: Open the [Developer Portal](https://post-pulse.com/app/portal/apps) in the PostPulse app (sign in with your PostPulse account). Create a new OAuth client to obtain `client_id` and `client_secret`.
 4. (Telegram only) Add the official **PostPulse bot** to your channels you plan to post to.
+5. (WhatsApp only) Connect the WhatsApp Business Account and create contact lists on the website. Message templates are created and approved in WhatsApp Manager. WhatsApp can't be connected from n8n.
 
 > Use the same email in n8n OAuth as your PostPulse account email.
 
@@ -74,6 +75,7 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - Select your connected account from the dropdown (accounts loaded automatically)
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
    - Facebook, Telegram and Pinterest accounts: select Page/Channel/Board from dropdowns (loaded automatically). A Facebook Page account is the Page itself, so it has no Page dropdown
+   - WhatsApp accounts: select the number to send from, the contact list and the template from dropdowns, then fill the template's variables (see [WhatsApp](#whatsapp))
    - Enter content and comma-separated attachment paths
    - TikTok accounts: pick a **Privacy Level** (required, loaded from the account's TikTok creator info) and set the interaction, music and commercial-content options (see below)
    - Instagram and TikTok accounts: optionally turn on the **AI Content** toggle (off by default) to label the post as AI-generated
@@ -84,7 +86,7 @@ For multi-account posting or complex scenarios:
 
 1. **Accounts → Get Many**  
    Retrieve your connected accounts. Save the `id` of targets you'll post to.
-2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook/Pinterest manually)*  
+2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook/Pinterest/WhatsApp manually)*  
    Input: Account ID. Output contains chat/page IDs.
 3. **Media → Upload** *(same as above)*
 4. **Posts → Schedule**  
@@ -102,8 +104,12 @@ For multi-account posting or complex scenarios:
 - **Use:** Pick `id` for each destination.
 
 ### Accounts: **Get Connected Chats**
-- **Input:** Account ID (a Telegram, Facebook or Pinterest account)
-- **Output:** Array: `{ id, title }` — Telegram channels, Facebook Pages or Pinterest boards. Pass `id` as `chatId` into posts.
+- **Input:** Account ID (a Telegram, Facebook, Pinterest or WhatsApp account)
+- **Output:** Array: `{ id, title }` — Telegram channels, Facebook Pages, Pinterest boards or WhatsApp phone numbers. Pass `id` as `chatId` into posts.
+
+### Accounts: **Get Delivery Summary**
+- **Input:** Account ID (a WhatsApp account) and Post ID — the `id` of the post inside the WhatsApp publication (`publications[].posts[]` in the Schedule response), not the schedule `id`
+- **Output:** `{ total, pending, sending, accepted, sent, delivered, read, failed, optedOut, cancelled, topErrors }` — how many messages of the broadcast are in each status, and the most frequent WhatsApp errors. The counts keep changing while WhatsApp reports statuses.
 
 ### Media: **Upload**
 - **Input:** File or Public URL
@@ -133,7 +139,7 @@ For multi-account posting or complex scenarios:
 - **Key Features:**
   - **Platform-specific dynamic fields** — The UI automatically shows relevant fields based on the selected account's platform
   - **Automatic platform settings** — No need to manually construct JSON; the node builds `platformSettings` automatically
-  - **Smart chat selection** — Facebook Pages, Telegram Channels and Pinterest Boards appear as dropdowns (loaded from API)
+  - **Smart chat selection** — Facebook Pages, Telegram Channels, Pinterest Boards and WhatsApp numbers appear as dropdowns (loaded from API)
   - **Simple attachment paths** — Enter comma-separated media paths instead of managing collections
 - **Input Fields:**
   - `Schedule Mode` — "Post Now" (publishes immediately) or "Schedule for Later" (pick a time)
@@ -148,6 +154,7 @@ For multi-account posting or complex scenarios:
     - **Threads**: Topic Tag (optional)
     - **Pinterest**: Board dropdown, Pin Title, Destination Link, Alt Text, Board Section ID (all optional)
     - **Telegram**: Channel dropdown
+    - **WhatsApp**: Send From Number, Contact List and Template dropdowns, Header Variable, Body Variables (key/value), Button URL Suffixes (button index/value); no Content field — the text comes from the template
     - **X/Twitter, BlueSky, LinkedIn**: No additional fields
   - `Content` — Post text/caption (multi-line)
   - `Attachment Paths` — Comma-separated media paths from Media → Upload. With Publication Type Story, each path becomes its own story, in the order given, within one post
@@ -211,7 +218,7 @@ Represents “one publication in user’s mind” that may map to *one or many* 
     "6354d8d2-e0f1-702b-af6c-62e28e377ec7/c6c2b826-8aca-4eae-8549-515325012ab4.jpeg"
   ],
   "content": "Your caption or description",
-  "chatId": "1234567890"   // Telegram channel, Facebook Page or Pinterest board
+  "chatId": "1234567890"   // Telegram channel, Facebook Page, Pinterest board or WhatsApp phone number
   /* "thumbnailPath": "..." — coming soon */
 }
 ```
@@ -286,6 +293,21 @@ Supported shapes:
 ```
 
 > The board is required and is set as the post's `chatId` (get board IDs from **Accounts → Get Connected Chats** with the Pinterest account's ID). A Pin needs media: 1 image, 1 video, or a carousel of 2–5 images.
+
+### WhatsApp
+```json
+{
+  "type": "WHATSAPP",
+  "contactListId": 42,                           // required
+  "templateName": "autumn_sale",                 // required, an approved template
+  "templateLanguage": "en",                      // required
+  "headerParameter": "Autumn sale",              // only for a text header with a variable
+  "bodyParameters": { "1": "20%", "2": "Sunday" }, // a value for every body variable
+  "buttonParameters": { "0": "autumn-2026" }     // URL ending of each button with a dynamic URL, by button index
+}
+```
+
+> A WhatsApp publication sends an approved template to a contact list from one phone number: it has exactly one post, whose `chatId` is the number (from **Accounts → Get Connected Chats**). `content` is not needed: PostPulse takes the text from the template. A template with an image or video header needs exactly one attachment of that type. In Schedule (Light), a template entered with an expression is `name|language`, for example `autumn_sale|en`. The full rules are in the [API docs](https://post-pulse.com/api-docs#whatsapp).
 
 ### YouTube
 ```json

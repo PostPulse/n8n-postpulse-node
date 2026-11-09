@@ -121,6 +121,52 @@ function resolvePinterestSettings(this: IExecuteFunctions, itemIndex: number): I
 	return settings;
 }
 
+/**
+ * Builds the WhatsApp-specific platform settings. The sending number is sent as the post's chatId; the API
+ * checks the template's variables.
+ */
+function resolveWhatsAppSettings(this: IExecuteFunctions, itemIndex: number): IDataObject {
+	const settings: IDataObject = {};
+	const contactListId = this.getNodeParameter('whatsappContactList', itemIndex, '');
+	if (contactListId !== '') {
+		settings.contactListId = Number(contactListId);
+	}
+	const [templateName, templateLanguage] = String(this.getNodeParameter('whatsappTemplate', itemIndex, '') ?? '').split('|');
+	if (templateName) {
+		settings.templateName = templateName;
+	}
+	if (templateLanguage) {
+		settings.templateLanguage = templateLanguage;
+	}
+	const headerParameter = String(this.getNodeParameter('whatsappHeaderParameter', itemIndex, '') ?? '').trim();
+	if (headerParameter) {
+		settings.headerParameter = headerParameter;
+	}
+	const collections: Array<[string, string]> = [
+		['bodyParameters', 'whatsappBodyParameters'],
+		['buttonParameters', 'whatsappButtonParameters'],
+	];
+	for (const [settingName, parameterName] of collections) {
+		const values = toKeyValues(this.getNodeParameter(parameterName, itemIndex, {}) as IDataObject);
+		if (Object.keys(values).length > 0) {
+			settings[settingName] = values;
+		}
+	}
+	return settings;
+}
+
+/** The key/value pairs of a fixedCollection with a multiple `parameter` option, without empty keys. */
+function toKeyValues(collection: IDataObject): IDataObject {
+	const values: IDataObject = {};
+	for (const entry of (collection.parameter as IDataObject[] | undefined) ?? []) {
+		const key = String(entry.key ?? '').trim();
+		if (key) {
+			values[key] = String(entry.value ?? '');
+		}
+	}
+	return values;
+}
+
 async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise<any> {
 	const scheduleMode = this.getNodeParameter('scheduleMode', itemIndex, 'scheduled') as string;
 
@@ -190,7 +236,7 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 	const [platform, accountIdStr] = socialMediaAccountValue.split('|');
 	const accountId = parseInt(accountIdStr, 10);
 
-	// Get chatId from Facebook Page, Telegram Channel or Pinterest board if applicable
+	// Get chatId from Facebook Page, Telegram Channel, Pinterest board or WhatsApp number if applicable
 	let chatId = '';
 	if (platform === 'FACEBOOK') {
 		chatId = this.getNodeParameter('facebookPage', itemIndex, '') as string;
@@ -198,6 +244,8 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 		chatId = this.getNodeParameter('telegramChannel', itemIndex, '') as string;
 	} else if (platform === 'PINTEREST') {
 		chatId = this.getNodeParameter('pinterestBoard', itemIndex, '') as string;
+	} else if (platform === 'WHATSAPP') {
+		chatId = this.getNodeParameter('whatsappPhoneNumber', itemIndex, '') as string;
 	}
 
 	// Build platform settings based on the platform
@@ -233,6 +281,8 @@ async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Pr
 		}
 	} else if (platform === 'PINTEREST') {
 		Object.assign(platformSettings, resolvePinterestSettings.call(this, itemIndex));
+	} else if (platform === 'WHATSAPP') {
+		Object.assign(platformSettings, resolveWhatsAppSettings.call(this, itemIndex));
 	}
 	// For X_TWITTER, BLUE_SKY, TELEGRAM, LINKEDIN - just send the type
 
