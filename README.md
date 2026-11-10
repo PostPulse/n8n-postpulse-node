@@ -3,7 +3,7 @@
 > **Official n8n integration for [PostPulse](https://post-pulse.com)** — schedule and publish content to multiple social networks from your n8n workflows.
 
 - **Auth:** OAuth2 (auto refresh) 
-- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages / Pinterest Boards / WhatsApp numbers lookup)  
+- **Core actions:** Accounts → Media Upload → Schedule Post(s) (+ Telegram Channels / Facebook Pages / Pinterest Boards / WhatsApp numbers, contact lists and templates lookup)  
 - **Targets today:** Facebook, Instagram, TikTok, YouTube, Threads, LinkedIn, Pinterest, Telegram, X, Bluesky, WhatsApp (template broadcasts)  
 - **Use cases:** One-click multi-destination posting, media pipeline, automated campaigns
 
@@ -62,7 +62,9 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
 
 ## Quick start
 
-### Using Schedule (Light) - Recommended for simple workflows
+> **Renamed in 0.2.13:** the operation formerly called **Schedule (Light)** is now **Schedule** (action "Schedule a post"), and the former **Schedule** is now **Schedule (Advanced)** (action "Schedule an advanced post"). Only the names changed: existing workflows keep working as they are.
+
+### Using Schedule - Recommended
 
 1. **Media → Upload** *(if posting media)*
    - **From File**: Upload binary file data (automatically confirmed for integrity)
@@ -70,7 +72,7 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - **From Public URL**: Import media from a URL
      - With **Wait for Completion** enabled (recommended): polls until ready and returns `{ path }` — same shape as file upload
      - With **Wait for Completion** disabled: returns `{ id, state }` — use **Media → Get Upload Status** to poll manually
-2. **Posts → Schedule (Light)**
+2. **Posts → Schedule**
    - Choose **Schedule Mode**: "Post Now" (immediate) or "Schedule for Later" (pick a time)
    - Select your connected account from the dropdown (accounts loaded automatically)
    - UI automatically shows platform-specific fields (e.g., Instagram: Publication Type)
@@ -80,16 +82,18 @@ This node extends n8n’s `oAuth2Api` so **tokens are refreshed automatically**.
    - TikTok accounts: pick a **Privacy Level** (required, loaded from the account's TikTok creator info) and set the interaction, music and commercial-content options (see below)
    - Instagram and TikTok accounts: optionally turn on the **AI Content** toggle (off by default) to label the post as AI-generated
 
-### Using Schedule - Advanced workflows
+### Using Schedule (Advanced) - Advanced workflows
 
-For multi-account posting or complex scenarios:
+For posting to several accounts in one post, several posts in one publication (e.g. several Telegram channels), drafts, or platform settings that **Schedule** has no fields for (e.g. LinkedIn visibility, YouTube privacy and category):
 
 1. **Accounts → Get Many**  
    Retrieve your connected accounts. Save the `id` of targets you'll post to.
 2. **Accounts → Get Connected Chats** *(only if posting to Telegram/Facebook/Pinterest/WhatsApp manually)*  
    Input: Account ID. Output contains chat/page IDs.
-3. **Media → Upload** *(same as above)*
-4. **Posts → Schedule**  
+3. **Accounts → Get Contact Lists** and **Accounts → Get Templates** *(WhatsApp only)*  
+   Input: WhatsApp account. Output: the contact lists (`id` → `contactListId`) and the templates (`name`, `language` → `templateName`, `templateLanguage`, plus the keys of the template's variables). See [WhatsApp](#whatsapp).
+4. **Media → Upload** *(same as above)*
+5. **Posts → Schedule (Advanced)**  
    Build one `PostSchedule` with one or more `Publication`s.  
    - Choose "Post Now" or "Schedule for Later" (with a specific time, interpreted in the workflow timezone)
    - Manually construct `platformSettings` JSON
@@ -106,6 +110,21 @@ For multi-account posting or complex scenarios:
 ### Accounts: **Get Connected Chats**
 - **Input:** Account ID (a Telegram, Facebook, Pinterest or WhatsApp account)
 - **Output:** Array: `{ id, title }` — Telegram channels, Facebook Pages, Pinterest boards or WhatsApp phone numbers. Pass `id` as `chatId` into posts.
+
+### Accounts: **Get Contact Lists**
+- **Input:** `WhatsApp Account` — Dropdown of your connected WhatsApp accounts (or the account `id` via an expression)
+- **Output:** One item per contact list: `{ id, name, contactCount, createdTime }`. Pass `id` as `contactListId` in the WhatsApp `platformSettings`.
+- **Note:** Contact lists are created and filled on the PostPulse website.
+
+### Accounts: **Get Templates**
+- **Input:** `WhatsApp Account` — Dropdown of your connected WhatsApp accounts (or the account `id` via an expression)
+- **Output:** One item per message template: `{ name, language, category, parameterFormat, headerFormat, headerText, headerParameterKey, bodyText, bodyParameterKeys, footerText, buttons, supported, unsupportedReason }`
+- **Use:** Pass `name` and `language` as `templateName` and `templateLanguage` in the WhatsApp `platformSettings`, then fill the variables:
+  - `bodyParameters` — a value for every key in `bodyParameterKeys` (`"1"`, `"2"`, ... when `parameterFormat` is `POSITIONAL`, the variable names when it is `NAMED`)
+  - `headerParameter` — only when `headerParameterKey` is set
+  - `buttonParameters` — the URL ending of each button with `dynamicUrl: true`, under the button's index in `buttons`
+  - A `headerFormat` of `IMAGE` or `VIDEO` needs exactly one attachment of that type
+- **Note:** Templates with `supported: false` can't be sent; `unsupportedReason` says why. Templates are created and approved in WhatsApp Manager.
 
 ### Media: **Upload**
 - **Input:** File or Public URL
@@ -124,14 +143,7 @@ For multi-account posting or complex scenarios:
 - **Use:** Monitor the progress of URL-based media imports
 
 ### Posts: **Schedule**
-- **Input:** `PostSchedule` (see [Data model](#data-model))
-- **Schedule Mode:** "Post Now" (publishes immediately, no `scheduledTime` needed) or "Schedule for Later" (pick a time)
-- **Scheduled Time:** Interpreted using the workflow timezone (see Workflow Settings) and sent to the API as UTC. A value with an explicit offset or `Z` is used as-is.
-- **Behavior:** Schedules one or multiple publications for the same time.
-- **Recommended:** `isDraft: false` (until update endpoints are exposed in node).
-
-### Posts: **Schedule (Light)**
-- **Purpose:** Simplified interface for scheduling a single post to one account
+- **Purpose:** Simplified interface for scheduling a single post to one account (named **Schedule (Light)** before 0.2.13)
 - **Key Features:**
   - **Platform-specific dynamic fields** — The UI automatically shows relevant fields based on the selected account's platform
   - **Automatic platform settings** — No need to manually construct JSON; the node builds `platformSettings` automatically
@@ -146,7 +158,7 @@ For multi-account posting or complex scenarios:
     - **Facebook**: Publication Type (Feed/Reels/Story) + Page dropdown
     - **Facebook Page** (an account that is one Page): Publication Type (Feed/Reels/Story); no Page dropdown, the account is the Page
     - **YouTube**: Video Title
-    - **TikTok**: Title, Privacy Level, Allow Comments/Duet/Stitch, Auto Add Music, Disclose Content (Your Brand / Branded Content) — see [TikTok settings in Schedule (Light)](#tiktok-settings-in-schedule-light)
+    - **TikTok**: Title, Privacy Level, Allow Comments/Duet/Stitch, Auto Add Music, Disclose Content (Your Brand / Branded Content) — see [TikTok settings in Schedule](#tiktok-settings-in-schedule)
     - **Threads**: Topic Tag (optional)
     - **Pinterest**: Board dropdown, Pin Title, Destination Link, Alt Text, Board Section ID (all optional)
     - **Telegram**: Channel dropdown
@@ -155,10 +167,10 @@ For multi-account posting or complex scenarios:
   - `Content` — Post text/caption (multi-line)
   - `Attachment Paths` — Comma-separated media paths from Media → Upload. With Publication Type Story, each path becomes its own story, in the order given, within one post
   - `AI Content` — *(Instagram and TikTok only)* Toggle, **off by default**. Turn on when the content is generated or significantly edited with AI; the node sends it as `aiContent` in `platformSettings`.
-- **Output:** Same as Schedule operation
-- **Use Case:** Perfect for simple workflows and testing; for complex multi-account or multi-post scenarios, use Schedule operation
+- **Output:** Same as Schedule (Advanced)
+- **Use Case:** Most workflows; for posting to several accounts in one post, several posts in one publication, drafts or settings without a field here, use Schedule (Advanced)
 
-#### TikTok settings in Schedule (Light)
+#### TikTok settings in Schedule
 
 The TikTok fields follow the same rules as the TikTok form in the PostPulse app, which in turn follows TikTok's Content Sharing Guidelines:
 
@@ -177,6 +189,15 @@ The TikTok fields follow the same rules as the TikTok form in the PostPulse app,
 The node shows TikTok's declaration "By posting, you agree to TikTok's [Music Usage Confirmation](https://www.tiktok.com/legal/page/global/music-usage-confirmation/en)" (plus the [Branded Content Policy](https://www.tiktok.com/legal/page/global/bc-policy/en) for branded content) and sends `hasUsageConfirmation: true`.
 
 At execution the node reads the account's creator info once per account per run to apply the account-level settings above.
+
+### Posts: **Schedule (Advanced)**
+- **Purpose:** The whole `PostSchedule` in one call: several accounts, several posts per publication, drafts, any `platformSettings` (named **Schedule** before 0.2.13)
+- **Input:** `PostSchedule` (see [Data model](#data-model)); `platformSettings` is JSON (see [Platform settings](#platform-settings))
+- **Schedule Mode:** "Post Now" (publishes immediately, no `scheduledTime` needed) or "Schedule for Later" (pick a time)
+- **Scheduled Time:** Interpreted using the workflow timezone (see Workflow Settings) and sent to the API as UTC. A value with an explicit offset or `Z` is used as-is.
+- **Behavior:** Schedules one or multiple publications for the same time.
+- **Recommended:** `isDraft: false` (until update endpoints are exposed in node).
+- **IDs for the JSON:** account IDs from **Accounts → Get Many**, chat IDs from **Accounts → Get Connected Chats**, WhatsApp contact lists and templates from **Accounts → Get Contact Lists** and **Accounts → Get Templates**.
 
 ### Posts: **Get Delivery Summary**
 - **Purpose:** Results of a WhatsApp broadcast
@@ -212,7 +233,7 @@ Represents “one publication in user’s mind” that may map to *one or many* 
 - **One publication → multiple posts** is useful when:
   - Telegram account posts to several **channels** (one post per channel)
   - Telegram account posts with large text or more than 10 media (one post per message that will be published)
-  - Instagram or Facebook **storyline** (multiple stories in one conceptual set, one post per story). Schedule (Light) builds these posts from its comma-separated paths
+  - Instagram or Facebook **storyline** (multiple stories in one conceptual set, one post per story). Schedule builds these posts from its comma-separated paths
 
 ### `Post`
 ```json
@@ -282,7 +303,7 @@ Supported shapes:
 }
 ```
 
-> **AI Content:** `aiContent` is supported by Instagram and TikTok only. In **Schedule (Light)** it appears as the **AI Content** toggle for those platforms (off by default); in **Schedule** set it directly in `platformSettings`.
+> **AI Content:** `aiContent` is supported by Instagram and TikTok only. In **Schedule** it appears as the **AI Content** toggle for those platforms (off by default); in **Schedule (Advanced)** set it directly in `platformSettings`.
 
 ### Pinterest
 ```json
@@ -310,7 +331,7 @@ Supported shapes:
 }
 ```
 
-> A WhatsApp publication sends an approved template to a contact list from one phone number: it has exactly one post, whose `chatId` is the number (from **Accounts → Get Connected Chats**). `content` is not needed: PostPulse takes the text from the template. A template with an image or video header needs exactly one attachment of that type. In Schedule (Light), a template entered with an expression is `name|language`, for example `autumn_sale|en`. The full rules are in the [API docs](https://post-pulse.com/api-docs#whatsapp).
+> A WhatsApp publication sends an approved template to a contact list from one phone number: it has exactly one post, whose `chatId` is the number (from **Accounts → Get Connected Chats**). `contactListId` comes from **Accounts → Get Contact Lists**; `templateName`, `templateLanguage` and the variable keys come from **Accounts → Get Templates**. `content` is not needed: PostPulse takes the text from the template. A template with an image or video header needs exactly one attachment of that type. In Schedule, a template entered with an expression is `name|language`, for example `autumn_sale|en`. The full rules are in the [API docs](https://post-pulse.com/api-docs#whatsapp).
 
 ### YouTube
 ```json
@@ -431,6 +452,8 @@ PostPulse supports webhooks for real-time notifications instead of polling for s
 
 ## Examples
 
+The JSON examples are `PostSchedule` bodies for **Schedule (Advanced)**; the **Schedule** examples list the node's fields.
+
 ### Minimal single-destination post (Reel)
 ```json
 {
@@ -529,7 +552,7 @@ PostPulse supports webhooks for real-time notifications instead of polling for s
 
 > **Note:** Use the `s3Key` value in `attachmentPaths` when the state is `READY`.
 
-### Schedule (Light) - Instagram Reel
+### Schedule - Instagram Reel
 Using the simplified interface with automatic platform settings:
 
 **Node configuration:**
@@ -559,7 +582,7 @@ The node automatically builds this API request:
 }
 ```
 
-### Schedule (Light) - Telegram with Channel Selection
+### Schedule - Telegram with Channel Selection
 **Node configuration:**
 - Schedule Mode: `Post Now`
 - Social Media Account: `TELEGRAM - @mybot`
@@ -585,7 +608,7 @@ The node automatically builds this API request (no `scheduledTime` — posts imm
 }
 ```
 
-### Schedule (Light) - YouTube Video
+### Schedule - YouTube Video
 **Node configuration:**
 - Schedule Mode: `Schedule for Later`
 - Scheduled Time: `2025-08-17T14:03:00`
@@ -636,13 +659,13 @@ Use Media → Upload with "From Public URL" option. Provide the URL and optional
 In v1 of the node, we recommend `isDraft: false`. Update endpoints will be exposed in a later version.
 
 **How do I post to multiple accounts at once?**  
-Create one `PostSchedule` with multiple `Publication` objects (one per account).
+Use **Schedule (Advanced)**: create one `PostSchedule` with multiple `Publication` objects (one per account). With **Schedule**, each input item schedules a separate post to one account.
 
 **How do I set YouTube or TikTok titles?**  
 Titles live in **`platformSettings`** (see schemas above). `content` becomes description.
 
 **How do I label a post as AI-generated?**  
-For Instagram and TikTok, turn on the **AI Content** toggle in Schedule (Light) (it is off by default), or set `"aiContent": true` in `platformSettings` when using Schedule. Other platforms ignore this setting.
+For Instagram and TikTok, turn on the **AI Content** toggle in Schedule (it is off by default), or set `"aiContent": true` in `platformSettings` when using Schedule (Advanced). Other platforms ignore this setting.
 
 **Which timezone is Scheduled Time in?**  
 The workflow timezone (n8n → Workflow Settings → Timezone). A naive value like `2025-08-17T14:03:00` is converted from that timezone to UTC before it is sent to the API. If the value already carries an offset or `Z`, it is used as-is.

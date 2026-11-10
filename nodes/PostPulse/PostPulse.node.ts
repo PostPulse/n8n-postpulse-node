@@ -94,6 +94,18 @@ export class PostPulse implements INodeType {
 						description: 'Get connected chats for an account',
 						action: 'Get connected chats',
 					},
+					{
+						name: 'Get Contact Lists',
+						value: 'getContactLists',
+						description: 'Get the contact lists of a WhatsApp account',
+						action: 'Get contact lists',
+					},
+					{
+						name: 'Get Templates',
+						value: 'getTemplates',
+						description: 'Get the message templates of a WhatsApp account',
+						action: 'Get templates',
+					},
 				],
 				default: 'getAll',
 			},
@@ -150,18 +162,21 @@ export class PostPulse implements INodeType {
 						resource: ['post'],
 					},
 				},
+				// The values predate the names: `scheduleLight` is shown as "Schedule" and `schedule` as "Schedule (Advanced)".
+				// Saved workflows store the value, so the values must not change. For the same reason the default stays
+				// `schedule`: n8n does not save a parameter that equals its default.
 				options: [
 					{
 						name: 'Schedule',
-						value: 'schedule',
-						description: 'Schedule a post',
+						value: 'scheduleLight',
+						description: 'Schedule a post to one account, with the fields of its platform',
 						action: 'Schedule a post',
 					},
 					{
-						name: 'Schedule (Light)',
-						value: 'scheduleLight',
-						description: 'Schedule a post with simplified interface',
-						action: 'Schedule a light post',
+						name: 'Schedule (Advanced)',
+						value: 'schedule',
+						description: 'Schedule a post to several accounts or as a draft, with platform settings as JSON',
+						action: 'Schedule an advanced post',
 					},
 					{
 						name: 'Get Delivery Summary',
@@ -172,7 +187,7 @@ export class PostPulse implements INodeType {
 				],
 				default: 'schedule',
 			},
-			// Post Get Delivery Summary Fields
+			// WhatsApp account of Account Get Contact Lists / Get Templates and Post Get Delivery Summary
 			{
 				displayName: 'WhatsApp Account Name or ID',
 				name: 'whatsappAccount',
@@ -184,8 +199,8 @@ export class PostPulse implements INodeType {
 				default: '',
 				displayOptions: {
 					show: {
-						resource: ['post'],
-						operation: ['getDeliverySummary'],
+						resource: ['account', 'post'],
+						operation: ['getContactLists', 'getTemplates', 'getDeliverySummary'],
 					},
 				},
 				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
@@ -340,7 +355,7 @@ export class PostPulse implements INodeType {
 				},
 				description: 'The ID of the media import job to check status for',
 			},
-			// Post Schedule (Original) Fields
+			// Post Schedule (Advanced) Fields, operation value `schedule`
 			{
 				displayName: 'Schedule Mode',
 				name: 'scheduleMode',
@@ -509,7 +524,7 @@ export class PostPulse implements INodeType {
 					},
 				],
 			},
-			// Post Schedule (Light) Fields
+			// Post Schedule Fields, operation value `scheduleLight`
 			{
 				displayName: 'Schedule Mode',
 				name: 'scheduleMode',
