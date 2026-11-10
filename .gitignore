@@ -9,7 +9,10 @@ yarn.lock
 
 # Memory bank
 CLAUDE.md
-.memory-bank
+.memory-bank/
 
 #scripts for local run n8n
 scripts
+
+# Playwright MCP snapshots and console logs from browser checks
+.playwright-mcp/

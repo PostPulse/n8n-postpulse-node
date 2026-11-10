@@ -192,7 +192,7 @@ At execution the node reads the account's creator info once per account per run 
 
 ### Posts: **Schedule (Advanced)**
 - **Purpose:** The whole `PostSchedule` in one call: several accounts, several posts per publication, drafts, any `platformSettings` (named **Schedule** before 0.2.13)
-- **Input:** `PostSchedule` (see [Data model](#data-model)); `platformSettings` is JSON (see [Platform settings](#platform-settings))
+- **Input:** `PostSchedule` (see [Data model](#data-model)); `platformSettings` is JSON (see [Platform settings](#platform-settings)): JSON text, which may contain expressions, or an expression that returns an object, e.g. one built from the output of **Accounts → Get Templates**
 - **Schedule Mode:** "Post Now" (publishes immediately, no `scheduledTime` needed) or "Schedule for Later" (pick a time)
 - **Scheduled Time:** Interpreted using the workflow timezone (see Workflow Settings) and sent to the API as UTC. A value with an explicit offset or `Z` is used as-is.
 - **Behavior:** Schedules one or multiple publications for the same time.

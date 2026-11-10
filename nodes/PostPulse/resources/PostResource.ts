@@ -216,11 +216,9 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 				}),
 			};
 
-			if (pub.platformSettings && pub.platformSettings.trim() !== '' && pub.platformSettings !== '{}') {
-				const parsedSettings = JSON.parse(pub.platformSettings);
-				if (parsedSettings && typeof parsedSettings === 'object' && Object.keys(parsedSettings).length > 0) {
-					publication.platformSettings = parsedSettings;
-				}
+			const platformSettings = parsePlatformSettings.call(this, pub.platformSettings, itemIndex);
+			if (platformSettings) {
+				publication.platformSettings = platformSettings;
 			}
 			return publication;
 		}),
@@ -231,6 +229,32 @@ async function schedulePost(this: IExecuteFunctions, itemIndex: number): Promise
 	}
 
 	return makeApiRequest.call(this, 'POST', '/v1/posts', body);
+}
+
+/**
+ * The platform settings of a Schedule (Advanced) publication, or undefined when they are empty. The field holds JSON
+ * text, but an expression in it may return an object (for example one built from Get Templates output), which n8n
+ * passes on as is.
+ */
+function parsePlatformSettings(this: IExecuteFunctions, value: unknown, itemIndex: number): IDataObject | undefined {
+	let settings = value;
+	if (typeof settings === 'string') {
+		if (!settings.trim()) {
+			return undefined;
+		}
+		try {
+			settings = JSON.parse(settings);
+		} catch (error) {
+			throw new NodeOperationError(this.getNode(), 'Platform Settings is not valid JSON', {
+				itemIndex,
+				description: (error as Error).message,
+			});
+		}
+	}
+	if (settings && typeof settings === 'object' && !Array.isArray(settings) && Object.keys(settings).length > 0) {
+		return settings as IDataObject;
+	}
+	return undefined;
 }
 
 async function schedulePostLight(this: IExecuteFunctions, itemIndex: number): Promise<any> {
