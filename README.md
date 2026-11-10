@@ -182,7 +182,7 @@ At execution the node reads the account's creator info once per account per run 
 - **Purpose:** Results of a WhatsApp broadcast
 - **Input:**
   - `WhatsApp Account` — Dropdown of your connected WhatsApp accounts (or the account `id` via an expression, e.g. `socialMediaAccountId` of the publication)
-  - `Post ID` — the `id` of the post inside the WhatsApp publication (`publications[].posts[]` in the Schedule response), not the schedule `id`
+  - `Post` — Dropdown of the account's broadcasts of the last 30 days, newest first (the 20 newest schedules with WhatsApp). Via an expression: the `id` of the post inside the WhatsApp publication (`publications[].posts[]` in the Schedule response), not the schedule `id`. The number in the PostPulse dashboard URL (`?post=…`, `/app/edit-post/…`) is the schedule `id`: `GET /v1/posts/{scheduleId}` returns its post IDs
 - **Output:** `{ total, pending, sending, accepted, sent, delivered, read, failed, optedOut, cancelled, topErrors }` — how many messages of the broadcast are in each status, and the most frequent WhatsApp errors. The counts keep changing while WhatsApp reports statuses.
 
 ---

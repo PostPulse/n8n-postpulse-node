@@ -15,6 +15,18 @@ import { executePostOperation } from './resources/PostResource';
 import { makeApiRequest } from './helpers/ApiHelper';
 import { TIKTOK_PRIVACY_LEVEL_LABELS, fetchTikTokCreatorInfo } from './helpers/TikTokHelper';
 
+// The Post dropdown of Get Delivery Summary lists the account's broadcasts of this many recent days
+const WHATSAPP_POSTS_LOOKBACK_DAYS = 30;
+// The posts list has no post IDs, so each WhatsApp schedule is read on its own; this bounds those requests
+const MAX_WHATSAPP_SCHEDULES = 20;
+
+/** A one-line label of a broadcast: its UTC time and the start of its text, or the template name. */
+function whatsAppPostLabel(scheduledTime: string | undefined, text: string): string {
+	const time = scheduledTime ? `${scheduledTime.slice(0, 16).replace('T', ' ')} UTC` : 'Not scheduled';
+	const oneLine = text.replace(/\s+/g, ' ').trim();
+	return `${time} - ${oneLine.length > 60 ? `${oneLine.slice(0, 60)}...` : oneLine}`;
+}
+
 export class PostPulse implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'PostPulse',
@@ -179,18 +191,23 @@ export class PostPulse implements INodeType {
 				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
 			{
-				displayName: 'Post ID',
+				displayName: 'Post Name or ID',
 				name: 'postId',
-				type: 'number',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWhatsAppPosts',
+					loadOptionsDependsOn: ['whatsappAccount'],
+				},
 				required: true,
-				default: 0,
+				default: '',
 				displayOptions: {
 					show: {
 						resource: ['post'],
 						operation: ['getDeliverySummary'],
 					},
 				},
-				description: 'ID of the post inside the WhatsApp publication (an item of publications[].posts in the Schedule response), not the ID of the schedule itself',
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				hint: `Broadcasts of the last ${WHATSAPP_POSTS_LOOKBACK_DAYS} days, newest first. An ID is the ID of the post inside the publication (publications[].posts[].id in the Schedule response), not the ID of the schedule.`,
 			},
 			// Media Upload Fields
 			{
@@ -1246,6 +1263,42 @@ export class PostPulse implements INodeType {
 						name: account.accountDisplayName || account.accountUsername,
 						value: account.id,
 					}));
+			},
+			async getWhatsAppPosts(this: ILoadOptionsFunctions) {
+				const accountId = Number(this.getNodeParameter('whatsappAccount', ''));
+				if (!Number.isInteger(accountId) || accountId <= 0) {
+					return [];
+				}
+
+				const toDate = new Date();
+				const fromDate = new Date(toDate.getTime() - WHATSAPP_POSTS_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+				const schedules = await makeApiRequest.call(this, 'GET', '/v1/posts', undefined, {
+					fromDate: fromDate.toISOString(),
+					toDate: toDate.toISOString(),
+				});
+				// The list is oldest first and has no post IDs: read the newest WhatsApp schedules one by one
+				const whatsAppSchedules = (schedules as any[])
+					.filter((schedule) => (schedule.platforms ?? []).includes('WHATSAPP'))
+					.sort((a, b) => String(b.scheduledTime ?? '').localeCompare(String(a.scheduledTime ?? '')))
+					.slice(0, MAX_WHATSAPP_SCHEDULES);
+				const details = await Promise.all(
+					whatsAppSchedules.map((schedule) => makeApiRequest.call(this, 'GET', `/v1/posts/${schedule.id}`)),
+				);
+
+				return details.flatMap((schedule: any, index: number) =>
+					(schedule.publications ?? [])
+						.filter((publication: any) => publication.socialMediaAccountId === accountId)
+						.flatMap((publication: any) =>
+							(publication.posts ?? []).map((post: any) => ({
+								name: whatsAppPostLabel(
+									schedule.scheduledTime,
+									whatsAppSchedules[index].content || publication.platformSettingsNew?.templateName || '',
+								),
+								value: post.id,
+								description: `Post ${post.id}, ${publication.status}`,
+							})),
+						),
+				);
 			},
 			async getWhatsAppContactLists(this: ILoadOptionsFunctions) {
 				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
