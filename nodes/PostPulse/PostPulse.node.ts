@@ -15,6 +15,18 @@ import { executePostOperation } from './resources/PostResource';
 import { makeApiRequest } from './helpers/ApiHelper';
 import { TIKTOK_PRIVACY_LEVEL_LABELS, fetchTikTokCreatorInfo } from './helpers/TikTokHelper';
 
+// The Post dropdown of Get Delivery Summary lists the account's broadcasts of this many recent days
+const WHATSAPP_POSTS_LOOKBACK_DAYS = 30;
+// The posts list has no post IDs, so each WhatsApp schedule is read on its own; this bounds those requests
+const MAX_WHATSAPP_SCHEDULES = 20;
+
+/** A one-line label of a broadcast: its UTC time and the start of its text, or the template name. */
+function whatsAppPostLabel(scheduledTime: string | undefined, text: string): string {
+	const time = scheduledTime ? `${scheduledTime.slice(0, 16).replace('T', ' ')} UTC` : 'Not scheduled';
+	const oneLine = text.replace(/\s+/g, ' ').trim();
+	return `${time} - ${oneLine.length > 60 ? `${oneLine.slice(0, 60)}...` : oneLine}`;
+}
+
 export class PostPulse implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'PostPulse',
@@ -82,6 +94,18 @@ export class PostPulse implements INodeType {
 						description: 'Get connected chats for an account',
 						action: 'Get connected chats',
 					},
+					{
+						name: 'Get Contact Lists',
+						value: 'getContactLists',
+						description: 'Get the contact lists of a WhatsApp account',
+						action: 'Get contact lists',
+					},
+					{
+						name: 'Get Templates',
+						value: 'getTemplates',
+						description: 'Get the message templates of a WhatsApp account',
+						action: 'Get templates',
+					},
 				],
 				default: 'getAll',
 			},
@@ -138,21 +162,67 @@ export class PostPulse implements INodeType {
 						resource: ['post'],
 					},
 				},
+				// The values predate the names: `scheduleLight` is shown as "Schedule" and `schedule` as "Schedule (Advanced)".
+				// Saved workflows store the value, so the values must not change. For the same reason the default stays
+				// `schedule`: n8n does not save a parameter that equals its default.
 				options: [
 					{
 						name: 'Schedule',
-						value: 'schedule',
-						description: 'Schedule a post',
+						value: 'scheduleLight',
+						description: 'Schedule a post to one account, with the fields of its platform',
 						action: 'Schedule a post',
 					},
 					{
-						name: 'Schedule (Light)',
-						value: 'scheduleLight',
-						description: 'Schedule a post with simplified interface',
-						action: 'Schedule a light post',
+						name: 'Schedule (Advanced)',
+						value: 'schedule',
+						description: 'Schedule a post to several accounts or as a draft, with platform settings as JSON',
+						action: 'Schedule an advanced post',
+					},
+					{
+						name: 'Get Delivery Summary',
+						value: 'getDeliverySummary',
+						description: 'Get how many messages of a WhatsApp broadcast were delivered, read or failed',
+						action: 'Get delivery summary',
 					},
 				],
 				default: 'schedule',
+			},
+			// WhatsApp account of Account Get Contact Lists / Get Templates and Post Get Delivery Summary
+			{
+				displayName: 'WhatsApp Account Name or ID',
+				name: 'whatsappAccount',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWhatsAppAccounts',
+				},
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['account', 'post'],
+						operation: ['getContactLists', 'getTemplates', 'getDeliverySummary'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Post Name or ID',
+				name: 'postId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWhatsAppPosts',
+					loadOptionsDependsOn: ['whatsappAccount'],
+				},
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['getDeliverySummary'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+				hint: `Broadcasts of the last ${WHATSAPP_POSTS_LOOKBACK_DAYS} days, newest first. An ID is the ID of the post inside the publication (publications[].posts[].id in the Schedule response), not the ID of the schedule.`,
 			},
 			// Media Upload Fields
 			{
@@ -285,7 +355,7 @@ export class PostPulse implements INodeType {
 				},
 				description: 'The ID of the media import job to check status for',
 			},
-			// Post Schedule (Original) Fields
+			// Post Schedule (Advanced) Fields, operation value `schedule`
 			{
 				displayName: 'Schedule Mode',
 				name: 'scheduleMode',
@@ -454,7 +524,7 @@ export class PostPulse implements INodeType {
 					},
 				],
 			},
-			// Post Schedule (Light) Fields
+			// Post Schedule Fields, operation value `scheduleLight`
 			{
 				displayName: 'Schedule Mode',
 				name: 'scheduleMode',
@@ -747,6 +817,165 @@ export class PostPulse implements INodeType {
 				},
 				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 			},
+			// Dynamic fields for WhatsApp
+			{
+				displayName: 'A WhatsApp post sends an approved template to a contact list. Templates are created in WhatsApp Manager, contact lists on the PostPulse website.',
+				name: 'whatsappNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+			},
+			{
+				displayName: 'Send From Number Name or ID',
+				name: 'whatsappPhoneNumber',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getConnectedChats',
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Contact List Name or ID',
+				name: 'whatsappContactList',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWhatsAppContactLists',
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Template Name or ID',
+				name: 'whatsappTemplate',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWhatsAppTemplates',
+				},
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Header Variable',
+				name: 'whatsappHeaderParameter',
+				type: 'string',
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'Value of the variable in the template\'s text header, if it has one (up to 60 characters)',
+			},
+			{
+				displayName: 'Body Variables',
+				name: 'whatsappBodyParameters',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				placeholder: 'Add Variable',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'A value for every variable in the template body',
+				options: [
+					{
+						name: 'parameter',
+						displayName: 'Variable',
+						values: [
+							{
+								displayName: 'Key',
+								name: 'key',
+								type: 'string',
+								default: '',
+								placeholder: '1',
+								description: 'Variable number (1, 2, ...) or, for templates with named variables, its name',
+							},
+							{
+								displayName: 'Value',
+								name: 'value',
+								type: 'string',
+								default: '',
+							},
+						],
+					},
+				],
+			},
+			{
+				displayName: 'Button URL Suffixes',
+				name: 'whatsappButtonParameters',
+				type: 'fixedCollection',
+				typeOptions: {
+					multipleValues: true,
+				},
+				default: {},
+				placeholder: 'Add Button',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'The end of the URL of each template button with a dynamic URL',
+				options: [
+					{
+						name: 'parameter',
+						displayName: 'Button',
+						values: [
+							{
+								displayName: 'Button Index',
+								name: 'key',
+								type: 'string',
+								default: '',
+								placeholder: '0',
+								description: 'Position of the button in the template, starting from 0',
+							},
+							{
+								displayName: 'URL Suffix',
+								name: 'value',
+								type: 'string',
+								default: '',
+							},
+						],
+					},
+				],
+			},
 			{
 				displayName: 'Content',
 				name: 'content',
@@ -759,6 +988,10 @@ export class PostPulse implements INodeType {
 					show: {
 						resource: ['post'],
 						operation: ['scheduleLight'],
+					},
+					hide: {
+						// The text of a WhatsApp post comes from its template
+						platform: ['WHATSAPP'],
 					},
 				},
 				description: 'Post content/text',
@@ -775,7 +1008,7 @@ export class PostPulse implements INodeType {
 					},
 				},
 				placeholder: 'user_uuid/uuid1.jpg, user_uuid/uuid2.mp4, user_uuid/uuid3.png',
-				description: 'Comma-separated list of media attachment paths. With Publication Type Story, each path becomes its own story, in the order given, within one post.',
+				description: 'Comma-separated list of media attachment paths. With Publication Type Story, each path becomes its own story, in the order given, within one post. For WhatsApp, only the header image or video of a template that has one.',
 			},
 			{
 				displayName: 'Privacy Level Name or ID',
@@ -1017,7 +1250,11 @@ export class PostPulse implements INodeType {
 			async getAccounts(this: ILoadOptionsFunctions) {
 				const accounts = await makeApiRequest.call(this, 'GET', '/v1/accounts');
 				return accounts.map((account: any) => ({
-					name: `${account.platform} - @${account.accountUsername}`,
+					// The display name tells apart accounts that share a username, e.g. WhatsApp Business accounts
+					name: `${account.platform} - @${account.accountUsername}`
+						+ (account.accountDisplayName && account.accountDisplayName !== account.accountUsername
+							? ` (${account.accountDisplayName})`
+							: ''),
 					// Store both ID and platform in a pipe-separated format for easier matching
 					value: `${account.platform}|${account.id}`,
 				}));
@@ -1031,6 +1268,76 @@ export class PostPulse implements INodeType {
 					name: chat.title,
 					value: chat.id,
 				}));
+			},
+			async getWhatsAppAccounts(this: ILoadOptionsFunctions) {
+				const accounts = await makeApiRequest.call(this, 'GET', '/v1/accounts');
+				// All WhatsApp accounts share one username, so they are told apart by the WhatsApp Business account name
+				return accounts
+					.filter((account: any) => account.platform === 'WHATSAPP')
+					.map((account: any) => ({
+						name: account.accountDisplayName || account.accountUsername,
+						value: account.id,
+					}));
+			},
+			async getWhatsAppPosts(this: ILoadOptionsFunctions) {
+				const accountId = Number(this.getNodeParameter('whatsappAccount', ''));
+				if (!Number.isInteger(accountId) || accountId <= 0) {
+					return [];
+				}
+
+				const toDate = new Date();
+				const fromDate = new Date(toDate.getTime() - WHATSAPP_POSTS_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+				const schedules = await makeApiRequest.call(this, 'GET', '/v1/posts', undefined, {
+					fromDate: fromDate.toISOString(),
+					toDate: toDate.toISOString(),
+				});
+				// The list is oldest first and has no post IDs: read the newest WhatsApp schedules one by one
+				const whatsAppSchedules = (schedules as any[])
+					.filter((schedule) => (schedule.platforms ?? []).includes('WHATSAPP'))
+					.sort((a, b) => String(b.scheduledTime ?? '').localeCompare(String(a.scheduledTime ?? '')))
+					.slice(0, MAX_WHATSAPP_SCHEDULES);
+				const details = await Promise.all(
+					whatsAppSchedules.map((schedule) => makeApiRequest.call(this, 'GET', `/v1/posts/${schedule.id}`)),
+				);
+
+				return details.flatMap((schedule: any, index: number) =>
+					(schedule.publications ?? [])
+						.filter((publication: any) => publication.socialMediaAccountId === accountId)
+						.flatMap((publication: any) =>
+							(publication.posts ?? []).map((post: any) => ({
+								name: whatsAppPostLabel(
+									schedule.scheduledTime,
+									whatsAppSchedules[index].content || publication.platformSettingsNew?.templateName || '',
+								),
+								value: post.id,
+								description: `Post ${post.id}, ${publication.status}`,
+							})),
+						),
+				);
+			},
+			async getWhatsAppContactLists(this: ILoadOptionsFunctions) {
+				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
+				const accountId = parseInt(socialMediaAccount.split('|')[1], 10);
+
+				const lists = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/whatsapp/contact-lists`);
+				return lists.map((list: any) => ({
+					name: `${list.name} (${list.contactCount} ${list.contactCount === 1 ? 'contact' : 'contacts'})`,
+					value: list.id,
+				}));
+			},
+			async getWhatsAppTemplates(this: ILoadOptionsFunctions) {
+				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
+				const accountId = parseInt(socialMediaAccount.split('|')[1], 10);
+
+				const templates = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/whatsapp/templates`);
+				// A template is identified by its name and language together
+				return templates
+					.filter((template: any) => template.supported)
+					.map((template: any) => ({
+						name: `${template.name} (${template.language})`,
+						value: `${template.name}|${template.language}`,
+						description: template.bodyText,
+					}));
 			},
 			async getTikTokPrivacyLevels(this: ILoadOptionsFunctions) {
 				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;
