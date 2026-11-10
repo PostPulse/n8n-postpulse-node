@@ -1253,7 +1253,7 @@ export class PostPulse implements INodeType {
 
 				const lists = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/whatsapp/contact-lists`);
 				return lists.map((list: any) => ({
-					name: `${list.name} (${list.contactCount} contacts)`,
+					name: `${list.name} (${list.contactCount} ${list.contactCount === 1 ? 'contact' : 'contacts'})`,
 					value: list.id,
 				}));
 			},
