@@ -21,7 +21,19 @@ export async function executePostOperation(
 		return await schedulePostLight.call(this, itemIndex);
 	}
 
+	if (operation === 'getDeliverySummary') {
+		return await getDeliverySummary.call(this, itemIndex);
+	}
+
 	throw new NodeOperationError(this.getNode(), `Unknown post operation: ${operation}`, { itemIndex });
+}
+
+/** The delivery summary of a WhatsApp broadcast: how many of its messages are in each status. */
+async function getDeliverySummary(this: IExecuteFunctions, itemIndex: number): Promise<any> {
+	const accountId = this.getNodeParameter('whatsappAccount', itemIndex) as number | string;
+	const postId = this.getNodeParameter('postId', itemIndex) as number;
+
+	return await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/whatsapp/posts/${postId}/delivery`);
 }
 
 /**

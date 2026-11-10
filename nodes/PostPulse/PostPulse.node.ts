@@ -82,12 +82,6 @@ export class PostPulse implements INodeType {
 						description: 'Get connected chats for an account',
 						action: 'Get connected chats',
 					},
-					{
-						name: 'Get Delivery Summary',
-						value: 'getWhatsAppDelivery',
-						description: 'Get how many messages of a WhatsApp broadcast were delivered, read or failed',
-						action: 'Get delivery summary',
-					},
 				],
 				default: 'getAll',
 			},
@@ -105,34 +99,6 @@ export class PostPulse implements INodeType {
 					},
 				},
 				description: 'ID of the account to get connected chats for',
-			},
-			{
-				displayName: 'Account ID',
-				name: 'accountId',
-				type: 'number',
-				required: true,
-				default: 0,
-				displayOptions: {
-					show: {
-						resource: ['account'],
-						operation: ['getWhatsAppDelivery'],
-					},
-				},
-				description: 'ID of the WhatsApp account that sent the broadcast',
-			},
-			{
-				displayName: 'Post ID',
-				name: 'postId',
-				type: 'number',
-				required: true,
-				default: 0,
-				displayOptions: {
-					show: {
-						resource: ['account'],
-						operation: ['getWhatsAppDelivery'],
-					},
-				},
-				description: 'ID of the post inside the WhatsApp publication (an item of publications[].posts in the Schedule response), not the ID of the schedule itself',
 			},
 			// Media Operations
 			{
@@ -185,8 +151,46 @@ export class PostPulse implements INodeType {
 						description: 'Schedule a post with simplified interface',
 						action: 'Schedule a light post',
 					},
+					{
+						name: 'Get Delivery Summary',
+						value: 'getDeliverySummary',
+						description: 'Get how many messages of a WhatsApp broadcast were delivered, read or failed',
+						action: 'Get delivery summary',
+					},
 				],
 				default: 'schedule',
+			},
+			// Post Get Delivery Summary Fields
+			{
+				displayName: 'WhatsApp Account Name or ID',
+				name: 'whatsappAccount',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWhatsAppAccounts',
+				},
+				required: true,
+				default: '',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['getDeliverySummary'],
+					},
+				},
+				description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			},
+			{
+				displayName: 'Post ID',
+				name: 'postId',
+				type: 'number',
+				required: true,
+				default: 0,
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['getDeliverySummary'],
+					},
+				},
+				description: 'ID of the post inside the WhatsApp publication (an item of publications[].posts in the Schedule response), not the ID of the schedule itself',
 			},
 			// Media Upload Fields
 			{
@@ -1232,6 +1236,16 @@ export class PostPulse implements INodeType {
 					name: chat.title,
 					value: chat.id,
 				}));
+			},
+			async getWhatsAppAccounts(this: ILoadOptionsFunctions) {
+				const accounts = await makeApiRequest.call(this, 'GET', '/v1/accounts');
+				// All WhatsApp accounts share one username, so they are told apart by the WhatsApp Business account name
+				return accounts
+					.filter((account: any) => account.platform === 'WHATSAPP')
+					.map((account: any) => ({
+						name: account.accountDisplayName || account.accountUsername,
+						value: account.id,
+					}));
 			},
 			async getWhatsAppContactLists(this: ILoadOptionsFunctions) {
 				const socialMediaAccount = this.getNodeParameter('socialMediaAccount') as string;

@@ -107,10 +107,6 @@ For multi-account posting or complex scenarios:
 - **Input:** Account ID (a Telegram, Facebook, Pinterest or WhatsApp account)
 - **Output:** Array: `{ id, title }` — Telegram channels, Facebook Pages, Pinterest boards or WhatsApp phone numbers. Pass `id` as `chatId` into posts.
 
-### Accounts: **Get Delivery Summary**
-- **Input:** Account ID (a WhatsApp account) and Post ID — the `id` of the post inside the WhatsApp publication (`publications[].posts[]` in the Schedule response), not the schedule `id`
-- **Output:** `{ total, pending, sending, accepted, sent, delivered, read, failed, optedOut, cancelled, topErrors }` — how many messages of the broadcast are in each status, and the most frequent WhatsApp errors. The counts keep changing while WhatsApp reports statuses.
-
 ### Media: **Upload**
 - **Input:** File or Public URL
 - **Output:** 
@@ -181,6 +177,13 @@ The TikTok fields follow the same rules as the TikTok form in the PostPulse app,
 The node shows TikTok's declaration "By posting, you agree to TikTok's [Music Usage Confirmation](https://www.tiktok.com/legal/page/global/music-usage-confirmation/en)" (plus the [Branded Content Policy](https://www.tiktok.com/legal/page/global/bc-policy/en) for branded content) and sends `hasUsageConfirmation: true`.
 
 At execution the node reads the account's creator info once per account per run to apply the account-level settings above.
+
+### Posts: **Get Delivery Summary**
+- **Purpose:** Results of a WhatsApp broadcast
+- **Input:**
+  - `WhatsApp Account` — Dropdown of your connected WhatsApp accounts (or the account `id` via an expression, e.g. `socialMediaAccountId` of the publication)
+  - `Post ID` — the `id` of the post inside the WhatsApp publication (`publications[].posts[]` in the Schedule response), not the schedule `id`
+- **Output:** `{ total, pending, sending, accepted, sent, delivered, read, failed, optedOut, cancelled, topErrors }` — how many messages of the broadcast are in each status, and the most frequent WhatsApp errors. The counts keep changing while WhatsApp reports statuses.
 
 ---
 
