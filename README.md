@@ -162,7 +162,7 @@ For posting to several accounts in one post, several posts in one publication (e
     - **Threads**: Topic Tag (optional)
     - **Pinterest**: Board dropdown, Pin Title, Destination Link, Alt Text, Board Section ID (all optional)
     - **Telegram**: Channel dropdown
-    - **WhatsApp**: Send From Number, Contact List and Template dropdowns, Header Variable, Body Variables (key/value), Button URL Suffixes (button index/value); no Content field — the text comes from the template
+    - **WhatsApp**: Send From Number, Contact List and Template dropdowns, Header Variable, Body Variables (key/value), Button URL Suffixes (button index/value), Video for Android (Repack (Recommended) / Send As Is, see [WhatsApp](#whatsapp)); no Content field — the text comes from the template
     - **X/Twitter, BlueSky, LinkedIn**: No additional fields
   - `Content` — Post text/caption (multi-line)
   - `Attachment Paths` — Comma-separated media paths from Media → Upload. With Publication Type Story, each path becomes its own story, in the order given, within one post
@@ -327,11 +327,14 @@ Supported shapes:
   "templateLanguage": "en",                      // required
   "headerParameter": "Autumn sale",              // only for a text header with a variable
   "bodyParameters": { "1": "20%", "2": "Sunday" }, // a value for every body variable
-  "buttonParameters": { "0": "autumn-2026" }     // URL ending of each button with a dynamic URL, by button index
+  "buttonParameters": { "0": "autumn-2026" },    // URL ending of each button with a dynamic URL, by button index
+  "androidVideoCompat": "REPACK" | "SEND_AS_IS"  // only for a video header whose index is at the end of the file
 }
 ```
 
 > A WhatsApp publication sends an approved template to a contact list from one phone number: it has exactly one post, whose `chatId` is the number (from **Accounts → Get Connected Chats**). `contactListId` comes from **Accounts → Get Contact Lists**; `templateName`, `templateLanguage` and the variable keys come from **Accounts → Get Templates**. `content` is not needed: PostPulse takes the text from the template. A template with an image or video header needs exactly one attachment of that type. In Schedule, a template entered with an expression is `name|language`, for example `autumn_sale|en`. The full rules are in the [API docs](https://post-pulse.com/api-docs#whatsapp).
+
+> **Header video and Android.** WhatsApp on Android can't play a video whose index (the MP4 `moov` box) comes after its data, although the message is delivered. If the header video is such a file, the API refuses the post with `400` unless `androidVideoCompat` is set: `REPACK` lets PostPulse move the index to the front without re-encoding, `SEND_AS_IS` sends the video unchanged. A video with the index at the start, an image header and a template without media need no value, and the API ignores it there. In Schedule the field is **Video for Android**, default **Repack (Recommended)**; it is sent with every WhatsApp post. In Schedule (Advanced) add `androidVideoCompat` to `platformSettings` yourself.
 
 ### YouTube
 ```json

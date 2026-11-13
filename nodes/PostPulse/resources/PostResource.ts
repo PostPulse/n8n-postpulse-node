@@ -164,6 +164,11 @@ function resolveWhatsAppSettings(this: IExecuteFunctions, itemIndex: number): ID
 			settings[settingName] = values;
 		}
 	}
+	// Sent for every template: the API applies it only to a header video whose index (moov box) is at the end
+	const androidVideoCompat = String(this.getNodeParameter('whatsappAndroidVideoCompat', itemIndex, 'REPACK') ?? '').trim();
+	if (androidVideoCompat) {
+		settings.androidVideoCompat = androidVideoCompat;
+	}
 	return settings;
 }
 

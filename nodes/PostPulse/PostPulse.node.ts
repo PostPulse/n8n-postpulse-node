@@ -977,6 +977,32 @@ export class PostPulse implements INodeType {
 				],
 			},
 			{
+				displayName: 'Video for Android',
+				name: 'whatsappAndroidVideoCompat',
+				type: 'options',
+				options: [
+					{
+						name: 'Repack (Recommended)',
+						value: 'REPACK',
+						description: 'If the header video\'s index is at the end of the file, PostPulse moves it to the front without re-encoding, so WhatsApp on Android can play it',
+					},
+					{
+						name: 'Send As Is',
+						value: 'SEND_AS_IS',
+						description: 'The video is sent unchanged; recipients on Android may not be able to play it',
+					},
+				],
+				default: 'REPACK',
+				displayOptions: {
+					show: {
+						resource: ['post'],
+						operation: ['scheduleLight'],
+						platform: ['WHATSAPP'],
+					},
+				},
+				description: 'For a template with a video header: what to do if the video\'s index (the MP4 moov box) is at the end of the file, where WhatsApp on Android can\'t play it. Ignored for other templates.',
+			},
+			{
 				displayName: 'Content',
 				name: 'content',
 				type: 'string',
