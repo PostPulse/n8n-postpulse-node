@@ -143,6 +143,7 @@ function resolveWhatsAppSettings(this: IExecuteFunctions, itemIndex: number): ID
 	if (contactListId !== '') {
 		settings.contactListId = Number(contactListId);
 	}
+	// name|language, or name|language|VIDEO from the template list (the header kind is not sent)
 	const [templateName, templateLanguage] = String(this.getNodeParameter('whatsappTemplate', itemIndex, '') ?? '').split('|');
 	if (templateName) {
 		settings.templateName = templateName;
@@ -164,7 +165,9 @@ function resolveWhatsAppSettings(this: IExecuteFunctions, itemIndex: number): ID
 			settings[settingName] = values;
 		}
 	}
-	// Sent for every template: the API applies it only to a header video whose index (moov box) is at the end
+	// Sent for every template, REPACK when the field is hidden (a template value without the "|VIDEO" suffix, e.g. one
+	// saved by 0.2.13, or an n8n without _cnd display conditions): the API applies it only to a header video whose
+	// index (moov box) is at the end
 	const androidVideoCompat = String(this.getNodeParameter('whatsappAndroidVideoCompat', itemIndex, 'REPACK') ?? '').trim();
 	if (androidVideoCompat) {
 		settings.androidVideoCompat = androidVideoCompat;

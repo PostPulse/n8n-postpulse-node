@@ -19,6 +19,8 @@ import { TIKTOK_PRIVACY_LEVEL_LABELS, fetchTikTokCreatorInfo } from './helpers/T
 const WHATSAPP_POSTS_LOOKBACK_DAYS = 30;
 // The posts list has no post IDs, so each WhatsApp schedule is read on its own; this bounds those requests
 const MAX_WHATSAPP_SCHEDULES = 20;
+// The API's headerFormat of a template with a video header; also the suffix of such a template's value
+const WHATSAPP_VIDEO_HEADER = 'VIDEO';
 
 /** A one-line label of a broadcast: its UTC time and the start of its text, or the template name. */
 function whatsAppPostLabel(scheduledTime: string | undefined, text: string): string {
@@ -998,9 +1000,13 @@ export class PostPulse implements INodeType {
 						resource: ['post'],
 						operation: ['scheduleLight'],
 						platform: ['WHATSAPP'],
+						// Keep it last: only a WhatsApp template value (a string) reaches it. The template list marks a
+						// video-header template with a "|VIDEO" suffix. The editor resolves an expression before this check,
+						// so an expression shows the field when its value ends with "|VIDEO". Hidden, the node sends REPACK.
+						whatsappTemplate: [{ _cnd: { endsWith: `|${WHATSAPP_VIDEO_HEADER}` } }],
 					},
 				},
-				description: 'For a template with a video header: what to do if the video\'s index (the MP4 moov box) is at the end of the file, where WhatsApp on Android can\'t play it. Ignored for other templates.',
+				description: 'What to do if the header video\'s index (the MP4 moov box) is at the end of the file, where WhatsApp on Android can\'t play it',
 			},
 			{
 				displayName: 'Content',
@@ -1356,12 +1362,15 @@ export class PostPulse implements INodeType {
 				const accountId = parseInt(socialMediaAccount.split('|')[1], 10);
 
 				const templates = await makeApiRequest.call(this, 'GET', `/v1/accounts/${accountId}/whatsapp/templates`);
-				// A template is identified by its name and language together
+				// A template is identified by its name and language together. A video-header template gets a third part,
+				// so that "Video for Android" can be shown only for it; other values keep the 0.2.13 form name|language.
 				return templates
 					.filter((template: any) => template.supported)
 					.map((template: any) => ({
 						name: `${template.name} (${template.language})`,
-						value: `${template.name}|${template.language}`,
+						value: template.headerFormat === WHATSAPP_VIDEO_HEADER
+							? `${template.name}|${template.language}|${WHATSAPP_VIDEO_HEADER}`
+							: `${template.name}|${template.language}`,
 						description: template.bodyText,
 					}));
 			},
